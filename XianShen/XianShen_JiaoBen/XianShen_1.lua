@@ -33,3 +33,13 @@ function ChuSi()
     os.exit()
   end
 end
+function ShunYi(ZBiao)
+  local XianShen_Tmp = {}
+  for x=1, 3 do
+    XianShen_Tmp[#XianShen_Tmp+1] = {}
+    XianShen_Tmp[#XianShen_Tmp].address = XianShen_Dz[1].address + x * 4
+    XianShen_Tmp[#XianShen_Tmp].flags = gg.TYPE_FLOAT
+    XianShen_Tmp[#XianShen_Tmp].value = ZBiao[x]
+  end
+  gg.setValues(XianShen_Tmp)
+end

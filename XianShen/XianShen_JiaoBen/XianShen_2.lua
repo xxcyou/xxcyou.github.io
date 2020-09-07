@@ -43,3 +43,12 @@ function JiaSuCuS()
   gg.clearResults()
   gg.toast("XianShen🔰:加速初始化成功")
 end
+function JiaSu(bei)
+  local XianShen_SetData = {}
+  XianShen_SuDU.value = bei
+  XianShen_SuDU.freeze = true
+  XianShen_SuDU.flags = gg.TYPE_FLOAT
+  XianShen_SetData[1] = XianShen_SuDU
+  gg.addListItems(XianShen_SetData)
+  gg.toast("XianShen🔰:当前倍速为"..bei.."倍！")
+end
