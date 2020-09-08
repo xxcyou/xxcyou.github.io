@@ -1,4 +1,4 @@
-local md5 = {}
+md5 = {}
 -- bit lib implementions
 local char, byte, format, rep, sub =
   string.char, string.byte, string.format, string.rep, string.sub
