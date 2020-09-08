@@ -36,7 +36,7 @@ function Wxnl()
     end
    else
     gg.toast("XianShen🔰:无限能量关闭成功")
-    wxfpy[1].freeze = false
+    XianShen_Wxhs[1].freeze = false
     gg.addListItems(XianShen_Wxhs)
     XianShen_Wxnl = false
   end
