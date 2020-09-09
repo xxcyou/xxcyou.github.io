@@ -1,45 +1,41 @@
-XianShen_Dz = nil
-function ChuSi()
-  gg.setVisible(false)
-  gg.clearResults()
-  gg.setRanges(4)
-  XianShen_searchNumber("-1,067,909,120", gg.TYPE_DWORD)
-  gg.refineNumber("-1,067,909,120", gg.TYPE_DWORD)
-  local XianShen_Jg = gg.getResultCount()
-  if XianShen_Jg >= 1 then
-    local XianShen_Zjg = gg.getResults(XianShen_Jg)
-    local XianShen_Tmp = {}
-    for k, v in pairs(XianShen_Zjg) do
-      XianShen_Tmp[#XianShen_Tmp + 1] = {}
-      XianShen_Tmp[#XianShen_Tmp].address = v.address + 60
-      XianShen_Tmp[#XianShen_Tmp].flags = gg.TYPE_DWORD
-    end
-    XianShen_Tmp = gg.getValues(XianShen_Tmp)
-    for k, v in pairs(XianShen_Tmp) do
-      if v.value == 1 then
-        XianShen_Zjg[1] = XianShen_Tmp[k]
-        break
-      end
-    end
-    local XianShen_Tpp = {}
-    XianShen_Tpp[1] = {}
-    XianShen_Tpp[1].address = XianShen_Zjg[1].address+92
-    XianShen_Tpp[1].flags = gg.TYPE_DWORD
-    XianShen_Dz = gg.getValues(XianShen_Tpp)
-    gg.clearResults()
-    gg.toast("XianShen🔰:人物坐标获取成功")
-   else
-    gg.toast("XianShen🔰:人物坐标获取失败")
-    os.exit()
-  end
-end
-function ShunYi(ZBiao)
-  local XianShen_Tmp = {}
-  for x=1, 3 do
-    XianShen_Tmp[#XianShen_Tmp+1] = {}
-    XianShen_Tmp[#XianShen_Tmp].address = XianShen_Dz[1].address + x * 4
-    XianShen_Tmp[#XianShen_Tmp].flags = gg.TYPE_FLOAT
-    XianShen_Tmp[#XianShen_Tmp].value = ZBiao[x]
-  end
-  gg.setValues(XianShen_Tmp)
-end
+XianShen_Data = {}
+XianShen_Data[1] = {('CandleSpace'), -768833570, ('遇境'), 0, 1, 1}
+XianShen_Data[2] = {'Dawn', 1649439303, ('晨岛'), 1, 1, 1}
+XianShen_Data[3] = {'Prairie_ButterflyFields', -1817621630, ('云野一图'), 0, 1, 1}
+XianShen_Data[4] = {'Prairie_Village', -1944435120, ('云野二图'), 1, 1, 1}
+XianShen_Data[5] = {'Prairie_Cave', -1050035699, ('云野左图'), 0, 1, 1}
+XianShen_Data[6] = {'Prairie_NestAndKeeper', 312004957, ('云野右图'), 0, 1, 1}
+XianShen_Data[7] = {'DayHubCave', -1900248111, '云野八人门', 0, 1, 1}
+XianShen_Data[8] = {'DayEnd', 1190972738, ('云野宫殿'), 0, 0, 1}
+XianShen_Data[9] = {'Prairie_Island', -1237641587, ('云野海岛'), 1, 1, 1}
+XianShen_Data[10] = {('Rain'), 164626931, ('雨林一图'), 1, 1, 1}
+XianShen_Data[11] = {('RainForest'), -1455381650, '雨林二图', 1, 1, 1}
+XianShen_Data[12] = {('RainShelter'), -1574275404, '雨林副本', 1, 1, 1}
+XianShen_Data[13] = {('Rain_Cave'), -161371567, '雨林副本隐藏图', 1, 1, 1}
+XianShen_Data[14] = {('RainMid'), -2135324521, '雨林水母图', 1, 1, 1}
+XianShen_Data[15] = {('RainEnd'), 128844448, '雨林宫殿', 1, 1, 1}
+XianShen_Data[16] = {('Sunset'), 1638008359, '霞谷一图', 0, 1, 1}
+XianShen_Data[17] = {('Sunset_Citadel'), -2115418256, '霞谷飞行一图', 0, 1, 1}
+XianShen_Data[18] = {('Sunset_FlyRace'), 1844499196, '霞谷飞行二图', 0, 1, 1}
+XianShen_Data[19] = {('SunsetRace'), 571720490, '霞谷地面赛道', 0, 1, 0}
+XianShen_Data[20] = {('SunsetEnd'), -1934656620, '霞谷终点', 0, 1, 1}
+XianShen_Data[21] = {('SunsetEnd2'), 507487826, '霞谷宫殿', 1, 1, 1}
+XianShen_Data[22] = {('DuskStart'), 817373972, '墓土一图', 0, 0, 1}
+XianShen_Data[23] = {('Dusk'), 1147491976, '墓土二图', 1, 1, 1}
+XianShen_Data[24] = {('DuskOasis'), 170656205, '墓土魔法季', 1, 1, 1}
+XianShen_Data[25] = {('DuskGraveyard'), 864432821, '墓土五龙图', 1, 1, 1}
+XianShen_Data[26] = {('Dusk_CrabField'), -1644045427, '墓土副本', 1, 1, 1}
+XianShen_Data[27] = {('DuskMid'), 1597085778, '墓土古战场', 1, 1, 1}
+XianShen_Data[28] = {('DuskEnd'), -136010643, '墓土宫殿', 1, 1, 1}
+XianShen_Data[29] = {('Night'), -1936060159, '禁阁低层', 0, 1, 1}
+XianShen_Data[30] = {('NightArchive'), 2518601, '禁阁副本', 0, 1, 1}
+XianShen_Data[31] = {('Night2'), -1987505335, '禁阁高层', 0, 1, 1}
+XianShen_Data[32] = {('NightEnd'), -2027781754, '禁阁终点', 0, 0, 0}
+XianShen_Data[33] = {('TGCOffice'), 295816905, '办公室', 1, 0, 1}
+XianShen_Data[34] = {('StormStart'), -1184245578, '暴风一图', 0, 1, 0}
+XianShen_Data[35] = {('Storm'), 1705189686, '暴风二图', 1, 1, 0}
+XianShen_Data[36] = {('StormEnd'), -815180717, '伊甸', 0, 0, 0}
+XianShen_Data[37] = {('OrbitMid'), -857831781, '重生一图', 0, 0, 0}
+XianShen_Data[38] = {('OrbitEnd'), 567986524, '重生二图', 0, 0, 0}
+XianShen_Data[39] = {('CandleSpaceEnd'), -2043682661, '星光大道', 0, 0, 0}
+XianShen_Data[40] = {('Credits'), 261807733, '结尾动画', 0, 0, 0}
