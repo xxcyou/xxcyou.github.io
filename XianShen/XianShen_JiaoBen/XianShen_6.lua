@@ -42,7 +42,6 @@ function RenYiMeng(x)
   XianShen_Tmp[1].address = XianShen_Lzdz + 8849904
   XianShen_Tmp[1].flags = 4
   XianShen_Tmp = gg.getValues(XianShen_Tmp)
-  LogF(XianShen_Tmp[1].value,406)
   if XianShen_Tmp[1].value == XianShen_Data[x][2] then
     return
   end
@@ -54,7 +53,6 @@ function RenYiMeng(x)
     XianShen_Msj1[i].address = XianShen_Lzdz - 35216 - 76 + i * 4
     XianShen_Msj1[i].flags = gg.TYPE_DWORD
     XianShen_Msj1[i].value = XianShen_Mmqm[x][i]
-    LogF(XianShen_Mmqm[x][i],416)
   end
   gg.setValues(XianShen_Msj1)
   gg.addListItems(XianShen_Msj1)
