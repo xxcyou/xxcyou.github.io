@@ -23,18 +23,9 @@ function DhZh()
     end
     local XianShen_Dzi = XianShen_Zjg[1].address
     XianShen_Lzdz = XianShen_Dzi - 48
-    local XianShen_Lz = {}
-    for i = 1, 320 do
-      XianShen_Lz[i] = {}
-      XianShen_Lz[i].address = XianShen_Lzdz + i * 448
-      XianShen_Lz[i].flags = gg.TYPE_FLOAT
-      XianShen_Lz[i].value = 1
-      XianShen_Lz[i].freeze = true
-    end
-    gg.addListItems(XianShen_Lz)
-    gg.toast('🔰点蜡开启成功')
+    gg.toast('🔰点蜡获取成功')
   else
-    gg.toast('🔰点蜡开启失败')
+    gg.toast('🔰点蜡获取失败')
   end
   gg.clearResults()
   gg.setVisible(false)
@@ -59,18 +50,9 @@ function DhZh()
     end
     local XianShen_Dzi = XianShen_Zjg[1].address
     XianShen_Dhdz = XianShen_Dzi + 4
-    local XianShen_Dh = {}
-    for i = 1, 245 do
-      XianShen_Dh[i] = {}
-      XianShen_Dh[i].address = XianShen_Dhdz + i * 8
-      XianShen_Dh[i].flags = gg.TYPE_FLOAT
-      XianShen_Dh[i].value = '0'
-      XianShen_Dh[i].freeze = true
-    end
-    gg.addListItems(XianShen_Dh)
-    gg.toast('🔰炸花开启成功')
+    gg.toast('🔰炸花获取成功')
   else
-    gg.toast('🔰炸花开启失败')
+    gg.toast('🔰炸花获取失败')
   end
   gg.clearResults()
 end
@@ -81,8 +63,24 @@ function Zddzuo()
     XianShen_Tmp[i].address = XianShen_Lzdz + (i - 1) * 24 + 10062280
     XianShen_Tmp[i].flags = gg.TYPE_DWORD
     XianShen_Tmp[i].value = 65535
-    XianShen_Tmp[i].freeze = true
   end
   gg.setValues(XianShen_Tmp)
-  gg.addListItems(XianShen_Tmp)
+end
+function ShunD()
+  local XianShen_Lz = {}
+    for i = 1, 450 do
+      XianShen_Lz[i] = {}
+      XianShen_Lz[i].address = XianShen_Lzdz + i * 448
+      XianShen_Lz[i].flags = gg.TYPE_FLOAT
+      XianShen_Lz[i].value = 2
+    end
+    gg.setValues(XianShen_Lz)
+    local XianShen_Dh = {}
+    for i = 1, 266 do
+      XianShen_Dh[i] = {}
+      XianShen_Dh[i].address = XianShen_Dhdz + i * 8
+      XianShen_Dh[i].flags = gg.TYPE_FLOAT
+      XianShen_Dh[i].value = '0'
+    end
+    gg.setValues(XianShen_Dh)
 end

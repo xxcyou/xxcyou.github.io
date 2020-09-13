@@ -91,9 +91,10 @@ function RenYiMeng(x)
         XianShen_Q1[1] = XianShen_KM[2]
       end
       gg.clearResults()
+      gg.setRanges(gg.REGION_C_ALLOC)
       XianShen_searchNumber(XianShen_Q1[1][1], gg.TYPE_BYTE)
       gg.refineNumber(XianShen_Q1[1][1], gg.TYPE_BYTE)
-      gg.getResults(gg.getResultCount())
+      gg.getResults(800)
       gg.editAll(XianShen_Q1[1][2], gg.TYPE_BYTE)
       gg.clearResults()
     end
