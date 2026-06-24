@@ -533,3 +533,21 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   .channel-desc { display: none; }
   .msg-image { max-width: 220px; }
 }
+
+/* ── ADMIN ── */
+.admin-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: .1em;
+  background: var(--grad); color: #fff;
+  padding: 2px 6px; border-radius: 4px; margin-left: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  vertical-align: middle;
+}
+.ch-delete-btn {
+  margin-left: auto; background: none; border: none;
+  color: var(--muted); cursor: pointer; font-size: 12px;
+  padding: 2px 5px; border-radius: 4px;
+  transition: color .15s, background .15s;
+  line-height: 1;
+}
+.ch-delete-btn:hover { color: var(--danger); background: rgba(239,68,68,.1); }
+.admin-viewing-tag { font-size: 13px; margin-left: 2px; }
