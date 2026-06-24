@@ -1,432 +1,144 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>聊天室 · xxcyou</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>NEXUS · 聊天室</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0e0e10;
-      --surface: #18181b;
-      --border: #27272a;
-      --accent: #7c3aed;
-      --accent-soft: #6d28d9;
-      --text: #f4f4f5;
-      --muted: #71717a;
-      --online: #22c55e;
-      --sidebar-w: 220px;
-    }
-
-    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
-
-    /* ── AUTH SCREEN ── */
-    #auth-screen {
-      display: flex; align-items: center; justify-content: center;
-      height: 100vh;
-      background: radial-gradient(ellipse at 60% 40%, #1e1b4b 0%, #0e0e10 70%);
-    }
-    .auth-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 48px 40px; text-align: center;
-      width: 100%; max-width: 360px;
-    }
-    .auth-logo { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 24px; }
-    .auth-title { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
-    .auth-sub { color: var(--muted); font-size: 14px; margin-bottom: 32px; line-height: 1.5; }
-    #login-btn {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      width: 100%; padding: 12px 20px; border-radius: 10px;
-      background: var(--accent); color: #fff; font-size: 15px; font-weight: 500;
-      border: none; cursor: pointer; transition: background 0.2s;
-    }
-    #login-btn:hover { background: var(--accent-soft); }
-    #login-btn svg { width: 20px; height: 20px; }
-
-    /* ── APP ── */
-    #app { display: none; height: 100vh; flex-direction: row; }
-
-    /* sidebar */
-    .sidebar {
-      width: var(--sidebar-w); background: var(--surface);
-      border-right: 1px solid var(--border);
-      display: flex; flex-direction: column; flex-shrink: 0;
-    }
-    .sidebar-header {
-      padding: 16px; border-bottom: 1px solid var(--border);
-      font-family: 'JetBrains Mono', monospace; font-size: 12px;
-      color: var(--accent); letter-spacing: 0.08em;
-    }
-    .channel-list { flex: 1; overflow-y: auto; padding: 8px 0; }
-    .channel-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 16px; cursor: pointer; font-size: 14px;
-      color: var(--muted); border-radius: 6px; margin: 0 6px;
-      transition: background 0.15s, color 0.15s;
-    }
-    .channel-item:hover { background: var(--border); color: var(--text); }
-    .channel-item.active { background: #3f3f46; color: var(--text); }
-    .channel-hash { font-size: 16px; }
-    .sidebar-footer {
-      padding: 12px 16px; border-top: 1px solid var(--border);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .user-avatar {
-      width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
-      border: 2px solid var(--accent);
-    }
-    .user-avatar-placeholder {
-      width: 32px; height: 32px; border-radius: 50%;
-      background: var(--accent); display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 600; color: #fff; flex-shrink: 0;
-    }
-    .user-name { font-size: 13px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .logout-btn {
-      background: none; border: none; color: var(--muted); cursor: pointer;
-      padding: 4px; border-radius: 4px; transition: color 0.2s;
-      font-size: 16px; display: flex; align-items: center;
-    }
-    .logout-btn:hover { color: #ef4444; }
-
-    /* main */
-    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .chat-header {
-      padding: 14px 20px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 10px;
-      background: var(--surface);
-    }
-    .chat-header-hash { color: var(--accent); font-size: 20px; }
-    .chat-header-name { font-weight: 600; font-size: 15px; }
-    .online-dot { width: 8px; height: 8px; background: var(--online); border-radius: 50%; margin-left: auto; }
-    .online-label { font-size: 12px; color: var(--muted); }
-
-    /* messages */
-    #messages {
-      flex: 1; overflow-y: auto; padding: 16px 20px;
-      display: flex; flex-direction: column; gap: 2px;
-    }
-    #messages::-webkit-scrollbar { width: 6px; }
-    #messages::-webkit-scrollbar-track { background: transparent; }
-    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    .msg { display: flex; gap: 12px; padding: 6px 8px; border-radius: 8px; transition: background 0.1s; }
-    .msg:hover { background: #18181b; }
-    .msg-avatar {
-      width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; margin-top: 2px;
-    }
-    .msg-avatar-placeholder {
-      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
-      background: var(--accent); display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: 600; color: #fff;
-    }
-    .msg-body { flex: 1; min-width: 0; }
-    .msg-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
-    .msg-user { font-size: 14px; font-weight: 600; color: var(--text); }
-    .msg-time { font-size: 11px; color: var(--muted); }
-    .msg-text { font-size: 14px; line-height: 1.55; color: #d4d4d8; word-break: break-word; }
-
-    .day-divider {
-      display: flex; align-items: center; gap: 12px;
-      color: var(--muted); font-size: 12px; margin: 12px 0;
-    }
-    .day-divider::before, .day-divider::after {
-      content: ''; flex: 1; height: 1px; background: var(--border);
-    }
-
-    /* input */
-    .input-area {
-      padding: 12px 20px 16px; background: var(--bg);
-    }
-    .input-box {
-      display: flex; align-items: center; gap: 10px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; padding: 10px 14px;
-      transition: border-color 0.2s;
-    }
-    .input-box:focus-within { border-color: var(--accent); }
-    #msg-input {
-      flex: 1; background: none; border: none; outline: none;
-      color: var(--text); font-size: 14px; font-family: 'Inter', sans-serif;
-      resize: none; max-height: 120px;
-    }
-    #msg-input::placeholder { color: var(--muted); }
-    #send-btn {
-      background: var(--accent); border: none; border-radius: 7px;
-      padding: 7px 10px; cursor: pointer; color: #fff;
-      display: flex; align-items: center; transition: background 0.2s;
-      flex-shrink: 0;
-    }
-    #send-btn:hover { background: var(--accent-soft); }
-    #send-btn svg { width: 16px; height: 16px; }
-
-    .empty-state {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; color: var(--muted); gap: 8px;
-    }
-    .empty-state-icon { font-size: 40px; }
-
-    /* mobile */
-    @media (max-width: 600px) {
-      :root { --sidebar-w: 180px; }
-      .auth-card { padding: 32px 24px; }
-    }
-  </style>
 </head>
 <body>
 
-<!-- AUTH -->
+<!-- AUTH SCREEN -->
 <div id="auth-screen">
+  <div class="auth-bg">
+    <div class="auth-grid"></div>
+    <div class="auth-glow"></div>
+  </div>
   <div class="auth-card">
-    <div class="auth-logo">// xxcyou.com</div>
-    <div class="auth-title">加入聊天室</div>
-    <div class="auth-sub">使用 GitHub 账号登录，<br>即可参与频道讨论。</div>
-    <button id="login-btn">
-      <svg viewBox="0 0 24 24" fill="currentColor">
+    <div class="auth-logo">
+      <span class="logo-bracket">[</span>NEXUS<span class="logo-bracket">]</span>
+    </div>
+    <h1 class="auth-title">进入聊天空间</h1>
+    <p class="auth-sub">实时多频道 · GitHub 身份验证 · 端到端同步</p>
+    <button id="login-btn" class="btn-login">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
       </svg>
       使用 GitHub 登录
     </button>
+    <p class="auth-hint">登录即表示你同意以文明方式使用本聊天室</p>
   </div>
 </div>
 
-<!-- APP -->
-<div id="app">
-  <div class="sidebar">
-    <div class="sidebar-header">频道列表</div>
-    <div class="channel-list" id="channel-list"></div>
+<!-- MAIN APP -->
+<div id="app" style="display:none">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="app-logo"><span class="logo-bracket">[</span>N<span class="logo-bracket">]</span> NEXUS</div>
+      <button class="sidebar-toggle" id="sidebar-toggle" title="收起">&#8942;</button>
+    </div>
+
+    <div class="sidebar-section-label">频道</div>
+    <div id="channel-list" class="channel-list"></div>
+    <button class="btn-add-channel" id="btn-add-channel">
+      <span>+</span> 新建频道
+    </button>
+
+    <div class="sidebar-section-label" style="margin-top:16px">在线成员
+      <span class="online-count" id="online-count">0</span>
+    </div>
+    <div id="online-list" class="online-list"></div>
+
     <div class="sidebar-footer">
-      <div class="user-avatar-placeholder" id="sidebar-avatar-placeholder"></div>
-      <img class="user-avatar" id="sidebar-avatar" style="display:none" />
-      <span class="user-name" id="sidebar-username"></span>
-      <button class="logout-btn" id="logout-btn" title="退出登录">
+      <img id="me-avatar" class="me-avatar" src="" alt=""/>
+      <div class="me-avatar-placeholder" id="me-avatar-placeholder"></div>
+      <div class="me-info">
+        <div class="me-name" id="me-name"></div>
+        <div class="me-status">● 在线</div>
+      </div>
+      <button class="btn-logout" id="btn-logout" title="退出">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
         </svg>
       </button>
     </div>
-  </div>
+  </aside>
 
-  <div class="main">
-    <div class="chat-header">
-      <span class="chat-header-hash">#</span>
-      <span class="chat-header-name" id="channel-name">general</span>
-      <span class="online-dot"></span>
-      <span class="online-label">在线</span>
-    </div>
-    <div id="messages"><div class="empty-state"><div class="empty-state-icon">💬</div><span>还没有消息，来说第一句话吧</span></div></div>
-    <div class="input-area">
-      <div class="input-box">
-        <textarea id="msg-input" rows="1" placeholder="发送消息…"></textarea>
-        <button id="send-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-        </button>
+  <!-- MAIN CHAT -->
+  <main class="chat-main">
+    <header class="chat-header">
+      <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
+      <div class="chat-header-info">
+        <span class="channel-hash">#</span>
+        <span class="channel-title" id="channel-title">general</span>
+        <span class="channel-desc" id="channel-desc"></span>
       </div>
+      <div class="header-right">
+        <span class="online-pill"><span class="pulse"></span><span id="header-online">0</span> 在线</span>
+      </div>
+    </header>
+
+    <div id="messages" class="messages"></div>
+
+    <!-- REPLY PREVIEW -->
+    <div id="reply-bar" class="reply-bar" style="display:none">
+      <div class="reply-bar-inner">
+        <span class="reply-label">回复</span>
+        <span class="reply-user" id="reply-user"></span>
+        <span class="reply-preview" id="reply-preview"></span>
+      </div>
+      <button class="reply-cancel" id="reply-cancel">✕</button>
+    </div>
+
+    <!-- INPUT AREA -->
+    <div class="input-area">
+      <button class="btn-emoji" id="btn-emoji" title="表情">😊</button>
+      <button class="btn-image" id="btn-image" title="图片">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </button>
+      <input type="file" id="img-input" accept="image/*" style="display:none"/>
+      <textarea id="msg-input" class="msg-input" placeholder="发送消息…" rows="1"></textarea>
+      <button class="btn-send" id="btn-send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- EMOJI PICKER -->
+    <div id="emoji-picker" class="emoji-picker" style="display:none"></div>
+  </main>
+</div>
+
+<!-- ADD CHANNEL MODAL -->
+<div id="modal-channel" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-title">新建频道</div>
+    <input type="text" id="new-channel-name" class="modal-input" placeholder="频道名称（英文/数字）" maxlength="32"/>
+    <input type="text" id="new-channel-desc" class="modal-input" placeholder="频道描述（可选）" maxlength="100"/>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="modal-cancel">取消</button>
+      <button class="btn-modal-ok" id="modal-ok">创建</button>
     </div>
   </div>
 </div>
 
-<script>
-  const SUPABASE_URL = 'https://xoazpnamzmluqedmggty.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvYXpwbmFtem1sdXFlZG1nZ3R5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjE1MzksImV4cCI6MjA5Nzc5NzUzOX0.4THXg-WGVHZzQMkM4gaH-W7QOTden58ICRiLa1q_y_k';
+<!-- IMAGE PREVIEW MODAL -->
+<div id="modal-img" class="modal-overlay" style="display:none">
+  <div class="modal-img-wrap">
+    <img id="modal-img-src" src="" alt=""/>
+    <button class="modal-img-close" id="modal-img-close">✕</button>
+  </div>
+</div>
 
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  let currentUser = null;
-  let currentChannel = null;
-  let realtimeSub = null;
-
-  // ── INIT ──
-  async function init() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) showApp(session.user);
-
-    sb.auth.onAuthStateChange((event, session) => {
-      if (session) showApp(session.user);
-      else showAuth();
-    });
-  }
-
-  // ── AUTH ──
-  document.getElementById('login-btn').onclick = () => {
-    sb.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: 'https://www.xxcyou.com/chat' }
-    });
-  };
-  document.getElementById('logout-btn').onclick = () => sb.auth.signOut();
-
-  // ── SHOW APP ──
-  async function showApp(user) {
-    currentUser = user;
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-
-    const name = user.user_metadata?.user_name || user.email?.split('@')[0] || '用户';
-    const avatar = user.user_metadata?.avatar_url;
-
-    document.getElementById('sidebar-username').textContent = name;
-    if (avatar) {
-      document.getElementById('sidebar-avatar').src = avatar;
-      document.getElementById('sidebar-avatar').style.display = 'block';
-      document.getElementById('sidebar-avatar-placeholder').style.display = 'none';
-    } else {
-      document.getElementById('sidebar-avatar-placeholder').textContent = name[0].toUpperCase();
-    }
-
-    await loadChannels();
-  }
-
-  function showAuth() {
-    currentUser = null;
-    document.getElementById('auth-screen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
-  }
-
-  // ── CHANNELS ──
-  async function loadChannels() {
-    const { data } = await sb.from('channels').select('*').order('id');
-    const list = document.getElementById('channel-list');
-    list.innerHTML = '';
-    if (!data || data.length === 0) return;
-
-    data.forEach(ch => {
-      const el = document.createElement('div');
-      el.className = 'channel-item';
-      el.innerHTML = `<span class="channel-hash">#</span><span>${ch.name}</span>`;
-      el.onclick = () => selectChannel(ch, el);
-      list.appendChild(el);
-    });
-
-    // auto-select first
-    selectChannel(data[0], list.firstChild);
-  }
-
-  async function selectChannel(ch, el) {
-    document.querySelectorAll('.channel-item').forEach(e => e.classList.remove('active'));
-    el.classList.add('active');
-    currentChannel = ch;
-    document.getElementById('channel-name').textContent = ch.name;
-    await loadMessages();
-    subscribeRealtime();
-  }
-
-  // ── MESSAGES ──
-  async function loadMessages() {
-    const msgEl = document.getElementById('messages');
-    msgEl.innerHTML = '';
-
-    const { data } = await sb.from('messages')
-      .select('*')
-      .eq('channel_id', currentChannel.id)
-      .order('created_at', { ascending: true })
-      .limit(100);
-
-    if (!data || data.length === 0) {
-      msgEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💬</div><span>还没有消息，来说第一句话吧</span></div>';
-      return;
-    }
-
-    let lastDate = null;
-    data.forEach(msg => {
-      const d = new Date(msg.created_at).toLocaleDateString('zh-CN');
-      if (d !== lastDate) {
-        const div = document.createElement('div');
-        div.className = 'day-divider';
-        div.textContent = d;
-        msgEl.appendChild(div);
-        lastDate = d;
-      }
-      msgEl.appendChild(renderMsg(msg));
-    });
-    scrollBottom();
-  }
-
-  function renderMsg(msg) {
-    const el = document.createElement('div');
-    el.className = 'msg';
-    el.dataset.id = msg.id;
-
-    const time = new Date(msg.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    const initial = (msg.username || '?')[0].toUpperCase();
-
-    el.innerHTML = `
-      ${msg.avatar_url
-        ? `<img class="msg-avatar" src="${escHtml(msg.avatar_url)}" alt="" />`
-        : `<div class="msg-avatar-placeholder">${escHtml(initial)}</div>`}
-      <div class="msg-body">
-        <div class="msg-meta">
-          <span class="msg-user">${escHtml(msg.username)}</span>
-          <span class="msg-time">${time}</span>
-        </div>
-        <div class="msg-text">${escHtml(msg.content)}</div>
-      </div>`;
-    return el;
-  }
-
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function scrollBottom() {
-    const el = document.getElementById('messages');
-    el.scrollTop = el.scrollHeight;
-  }
-
-  // ── REALTIME ──
-  function subscribeRealtime() {
-    if (realtimeSub) sb.removeChannel(realtimeSub);
-    realtimeSub = sb.channel(`messages:${currentChannel.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: `channel_id=eq.${currentChannel.id}`
-      }, payload => {
-        const msgEl = document.getElementById('messages');
-        const empty = msgEl.querySelector('.empty-state');
-        if (empty) msgEl.innerHTML = '';
-        msgEl.appendChild(renderMsg(payload.new));
-        scrollBottom();
-      })
-      .subscribe();
-  }
-
-  // ── SEND ──
-  async function sendMessage() {
-    const input = document.getElementById('msg-input');
-    const content = input.value.trim();
-    if (!content || !currentChannel || !currentUser) return;
-    input.value = '';
-    input.style.height = 'auto';
-
-    const name = currentUser.user_metadata?.user_name || currentUser.email?.split('@')[0] || '用户';
-    const avatar = currentUser.user_metadata?.avatar_url || null;
-
-    await sb.from('messages').insert({
-      channel_id: currentChannel.id,
-      user_id: currentUser.id,
-      username: name,
-      avatar_url: avatar,
-      content
-    });
-  }
-
-  document.getElementById('send-btn').onclick = sendMessage;
-  document.getElementById('msg-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  });
-
-  // auto-resize textarea
-  document.getElementById('msg-input').addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-  });
-
-  init();
-</script>
+<script src="app.js"></script>
 </body>
 </html>
