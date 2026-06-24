@@ -1,1 +1,183 @@
-1
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>NEXUS · 管理后台</title>
+  <link rel="stylesheet" href="admin.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- AUTH GUARD -->
+<div id="auth-guard">
+  <div class="guard-card">
+    <div class="guard-logo"><span class="lb">[</span>NEXUS<span class="lb">]</span> ADMIN</div>
+    <div class="guard-title">管理员验证</div>
+    <div class="guard-sub">此页面仅限管理员访问</div>
+    <button id="guard-login-btn" class="btn-primary">使用 GitHub 登录验证</button>
+    <div id="guard-error" class="guard-error" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ADMIN APP -->
+<div id="admin-app" style="display:none">
+  <aside class="admin-sidebar">
+    <div class="admin-logo"><span class="lb">[</span>N<span class="lb">]</span> ADMIN</div>
+    <nav class="admin-nav">
+      <button class="nav-item active" data-tab="dashboard">📊 概览</button>
+      <button class="nav-item" data-tab="announcements">📢 公告管理</button>
+      <button class="nav-item" data-tab="users">👥 用户管理</button>
+      <button class="nav-item" data-tab="banned">🚫 封禁列表</button>
+      <button class="nav-item" data-tab="messages">💬 消息管理</button>
+      <button class="nav-item" data-tab="reports">🚨 举报处理</button>
+      <button class="nav-item" data-tab="channels">📁 频道管理</button>
+    </nav>
+    <div class="admin-footer">
+      <div class="admin-me">
+        <img id="admin-avatar" src="" alt="" style="display:none"/>
+        <div id="admin-avatar-ph" class="admin-avatar-ph"></div>
+        <div>
+          <div id="admin-name" class="admin-name"></div>
+          <div class="admin-role">👑 管理员</div>
+        </div>
+      </div>
+      <div class="admin-footer-btns">
+        <a href="/chat" class="btn-back">← 返回聊天室</a>
+        <button id="admin-logout" class="btn-logout-sm">退出</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="panel-header"><h2>概览</h2></div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">👥</div>
+          <div class="stat-val" id="stat-users">-</div>
+          <div class="stat-label">注册用户</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💬</div>
+          <div class="stat-val" id="stat-messages">-</div>
+          <div class="stat-label">总消息数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📁</div>
+          <div class="stat-val" id="stat-channels">-</div>
+          <div class="stat-label">频道数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🚫</div>
+          <div class="stat-val" id="stat-banned">-</div>
+          <div class="stat-label">封禁用户</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🚨</div>
+          <div class="stat-val" id="stat-reports">-</div>
+          <div class="stat-label">待处理举报</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📢</div>
+          <div class="stat-val" id="stat-announcements">-</div>
+          <div class="stat-label">公告数</div>
+        </div>
+      </div>
+      <div class="panel-header" style="margin-top:32px"><h3>最近消息</h3></div>
+      <div id="recent-messages" class="recent-list"></div>
+    </div>
+
+    <!-- ANNOUNCEMENTS -->
+    <div id="tab-announcements" class="tab-panel">
+      <div class="panel-header">
+        <h2>公告管理</h2>
+        <button class="btn-primary" id="btn-new-announce">＋ 发布公告</button>
+      </div>
+      <div class="announce-compose" id="announce-compose" style="display:none">
+        <textarea id="announce-content" class="announce-textarea" placeholder="输入公告内容…" rows="4"></textarea>
+        <div class="compose-actions">
+          <button class="btn-cancel" id="announce-cancel">取消</button>
+          <button class="btn-primary" id="announce-submit">发布</button>
+        </div>
+      </div>
+      <div id="announcements-list" class="item-list"></div>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users" class="tab-panel">
+      <div class="panel-header">
+        <h2>用户管理</h2>
+        <input type="text" id="user-search" class="search-input" placeholder="搜索用户名…"/>
+      </div>
+      <div id="users-list" class="item-list"></div>
+    </div>
+
+    <!-- BANNED -->
+    <div id="tab-banned" class="tab-panel">
+      <div class="panel-header"><h2>封禁列表</h2></div>
+      <div id="banned-list" class="item-list"></div>
+    </div>
+
+    <!-- MESSAGES -->
+    <div id="tab-messages" class="tab-panel">
+      <div class="panel-header">
+        <h2>消息管理</h2>
+        <div class="msg-filter">
+          <select id="msg-channel-filter" class="select-input">
+            <option value="">所有频道</option>
+          </select>
+          <button class="btn-danger" id="btn-clear-channel">清空频道消息</button>
+        </div>
+      </div>
+      <div id="admin-messages-list" class="item-list"></div>
+    </div>
+
+    <!-- REPORTS -->
+    <div id="tab-reports" class="tab-panel">
+      <div class="panel-header"><h2>举报处理</h2></div>
+      <div id="reports-list" class="item-list"></div>
+    </div>
+
+    <!-- CHANNELS -->
+    <div id="tab-channels" class="tab-panel">
+      <div class="panel-header">
+        <h2>频道管理</h2>
+        <button class="btn-primary" id="btn-new-channel-admin">＋ 新建频道</button>
+      </div>
+      <div id="channels-list" class="item-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- BAN MODAL -->
+<div id="modal-ban" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-title">封禁用户</div>
+    <div id="ban-target-info" class="ban-target-info"></div>
+    <input type="text" id="ban-reason" class="modal-input" placeholder="封禁原因（可选）"/>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="ban-cancel">取消</button>
+      <button class="btn-danger" id="ban-confirm">确认封禁</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW CHANNEL MODAL -->
+<div id="modal-new-channel" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-title">新建频道</div>
+    <input type="text" id="nc-name" class="modal-input" placeholder="频道名称" maxlength="32"/>
+    <input type="text" id="nc-desc" class="modal-input" placeholder="频道描述（可选）" maxlength="100"/>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="nc-cancel">取消</button>
+      <button class="btn-primary" id="nc-confirm">创建</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
