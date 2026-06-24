@@ -380,7 +380,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
    INPUT AREA
 ═══════════════════════════════ */
 .input-area {
-  display: flex; align-items: flex-end; gap: 8px;
+  display: flex; align-items: flex-end; gap: 8px; position: relative;
   padding: 12px 16px 14px;
   background: var(--surface);
   border-top: 1px solid var(--border);
