@@ -570,3 +570,50 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 /* ── REPORT BTN ── */
 .msg-action-btn.report-btn { color: var(--yellow); }
 .msg-action-btn.report-btn:hover { background: rgba(245,158,11,.15); color: var(--yellow); }
+
+/* ════════════════════════════════
+   手机端响应式优化
+════════════════════════════════ */
+@media (max-width: 700px) {
+  /* 侧边栏变抽屉 */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 150;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 24px rgba(0,0,0,.5);
+    width: 280px !important;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-menu-btn { display: flex !important; }
+
+  /* 聊天主区域撑满 */
+  .chat-main { width: 100%; }
+
+  /* 输入区紧凑 */
+  .input-area { padding: 8px 10px 12px; gap: 6px; }
+  .msg-input { font-size: 15px; padding: 8px 10px; }
+  .btn-send { padding: 8px 10px; }
+  .input-btn { padding: 6px; font-size: 16px; }
+
+  /* 消息区 */
+  .messages { padding: 12px 8px; }
+  .msg { padding: 4px 6px; gap: 8px; }
+  .msg-avatar, .msg-avatar-ph { width: 30px; height: 30px; }
+  .msg-username { font-size: 13px; }
+  .msg-text { font-size: 13px; }
+  .msg-image { max-width: 200px; }
+
+  /* 消息操作按钮手机常显 */
+  .msg-actions { opacity: 1 !important; position: static; background: none; border: none; padding: 4px 0 0; }
+  .msg-action-btn { font-size: 11px; padding: 3px 6px; }
+
+  /* header */
+  .chat-header { padding: 0 12px; }
+  .channel-desc { display: none; }
+  .online-pill { font-size: 11px; padding: 3px 8px; }
+
+  /* emoji picker */
+  .emoji-picker { width: 240px; left: 0; }
+
+  /* 回复栏 */
+  .reply-bar { padding: 6px 10px; font-size: 12px; }
+}
