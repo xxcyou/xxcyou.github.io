@@ -199,7 +199,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   display: flex; align-items: center; gap: 10px;
   background: var(--surface);
 }
-.me-avatar-wrap { flex-shrink: 0; }
+.me-avatar-wrap { flex-shrink: 0; width: 34px; height: 34px; position: relative; overflow: hidden; }
+#me-avatar { width: 34px !important; height: 34px !important; max-width: 34px; max-height: 34px; position: relative; }
 .me-avatar-wrap img,
 .avatar-placeholder {
   width: 34px; height: 34px; border-radius: 50%;
