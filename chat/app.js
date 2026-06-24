@@ -103,12 +103,22 @@ async function checkAdmin() {
     el.style.display = isAdmin ? '' : 'none';
   });
 
-  // 管理员标记
+  // 管理员标记 + 头像点击进入后台
   const nameEl = document.getElementById('me-name');
-  if (isAdmin && !nameEl.querySelector('.admin-tag')) {
-    const tag = document.createElement('span');
-    tag.className = 'admin-tag'; tag.textContent = 'ADMIN';
-    nameEl.appendChild(tag);
+  const avatarLink = document.getElementById('me-avatar-link');
+  if (isAdmin) {
+    if (!nameEl.querySelector('.admin-tag')) {
+      const tag = document.createElement('span');
+      tag.className = 'admin-tag'; tag.textContent = 'ADMIN';
+      nameEl.appendChild(tag);
+    }
+    avatarLink.style.cursor = 'pointer';
+    avatarLink.title = '👑 点击进入管理后台';
+    avatarLink.onclick = () => window.location.href = '/chat/admin';
+  } else {
+    avatarLink.style.cursor = 'default';
+    avatarLink.title = '';
+    avatarLink.onclick = null;
   }
 }
 
