@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════
    NEXUS Chat · app.js
-   Supabase + GitHub OAuth + Multi-channel
+   Supabase + GitHub OAuth + Admin System
 ═══════════════════════════════════════════════════ */
 
 const SUPABASE_URL = 'https://xoazpnamzmluqedmggty.supabase.co';
@@ -13,6 +13,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 /* ── STATE ── */
 let me = null;
+let isAdmin = false;
 let channels = [];
 let currentChannel = null;
 let realtimeSub = null;
@@ -34,11 +35,10 @@ async function init() {
   buildEmojiPicker();
   bindUI();
 
-  // Handle OAuth redirect
-  const hash = window.location.hash;
   const search = window.location.search;
+  const hash = window.location.hash;
+
   if (hash.includes('access_token') || search.includes('code=')) {
-    // Let supabase handle the session exchange
     await sb.auth.getSession();
     window.history.replaceState(null, '', REDIRECT_URL);
   }
@@ -50,18 +50,12 @@ async function init() {
   }
 
   const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    await showApp(session.user);
-  } else {
-    showAuth();
-  }
+  if (session) await showApp(session.user);
+  else showAuth();
 
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      await showApp(session.user);
-    } else if (event === 'SIGNED_OUT') {
-      showAuth();
-    }
+    if (event === 'SIGNED_IN' && session) await showApp(session.user);
+    else if (event === 'SIGNED_OUT') showAuth();
   });
 }
 
@@ -69,7 +63,7 @@ async function init() {
    AUTH
 ══════════════════════════════════ */
 function showAuth() {
-  me = null;
+  me = null; isAdmin = false;
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   cleanupPresence();
@@ -84,7 +78,6 @@ async function showApp(user) {
   const avatar = user.user_metadata?.avatar_url || null;
 
   document.getElementById('me-name').textContent = name;
-
   const imgEl = document.getElementById('me-avatar');
   const phEl  = document.getElementById('me-avatar-placeholder');
   if (avatar) {
@@ -93,8 +86,29 @@ async function showApp(user) {
     phEl.textContent = name[0].toUpperCase(); imgEl.style.display = 'none'; phEl.style.display = 'flex';
   }
 
+  // 检查管理员身份（从数据库验证，前端无法伪造）
+  await checkAdmin();
+
   await loadChannels();
   setupPresence();
+}
+
+async function checkAdmin() {
+  const { data } = await sb.from('admins').select('user_id').eq('user_id', me.id).single();
+  isAdmin = !!data;
+
+  // 显示/隐藏管理员专属 UI
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+
+  // 管理员标记
+  const nameEl = document.getElementById('me-name');
+  if (isAdmin && !nameEl.querySelector('.admin-tag')) {
+    const tag = document.createElement('span');
+    tag.className = 'admin-tag'; tag.textContent = 'ADMIN';
+    nameEl.appendChild(tag);
+  }
 }
 
 /* ══════════════════════════════════
@@ -115,12 +129,32 @@ function renderChannelList() {
     const el = document.createElement('div');
     el.className = 'channel-item' + (currentChannel?.id === ch.id ? ' active' : '');
     el.dataset.id = ch.id;
-    el.innerHTML = `<span class="ch-hash">#</span><span>${esc(ch.name)}</span>`;
-    el.addEventListener('click', () => {
+
+    // 管理员显示删除频道按钮
+    const adminBtn = isAdmin
+      ? `<button class="ch-delete-btn admin-only" data-id="${ch.id}" title="删除频道">✕</button>`
+      : '';
+
+    el.innerHTML = `<span class="ch-hash">#</span><span class="ch-name">${esc(ch.name)}</span>${adminBtn}`;
+
+    el.addEventListener('click', (e) => {
+      if (e.target.classList.contains('ch-delete-btn')) return;
       selectChannel(ch);
-      // close sidebar on mobile
       document.getElementById('sidebar').classList.remove('open');
     });
+
+    // 删除频道
+    el.querySelector('.ch-delete-btn')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`确定删除频道 #${ch.name}？此操作不可撤销。`)) return;
+      const { error } = await sb.from('channels').delete().eq('id', ch.id);
+      if (error) { toast('删除失败，数据库拒绝了请求'); return; }
+      channels = channels.filter(c => c.id !== ch.id);
+      renderChannelList();
+      if (currentChannel?.id === ch.id && channels.length > 0) selectChannel(channels[0]);
+      toast('✓ 频道已删除');
+    });
+
     list.appendChild(el);
   });
 }
@@ -136,12 +170,13 @@ async function selectChannel(ch) {
 }
 
 async function createChannel(name, desc) {
+  if (!isAdmin) { toast('⛔ 权限不足'); return; }
   name = name.trim();
   if (!name) { toast('请输入频道名称'); return; }
   const { data, error } = await sb.from('channels')
     .insert({ name, description: desc.trim() || null })
     .select().single();
-  if (error) { toast('创建失败：' + (error.message || '名称可能已存在')); return; }
+  if (error) { toast('创建失败：' + (error.message || '名称可能已存在或权限不足')); return; }
   channels.push(data);
   renderChannelList();
   selectChannel(data);
@@ -182,8 +217,7 @@ async function loadMessages() {
     const day = new Date(msg.created_at).toLocaleDateString('zh-CN');
     if (day !== lastDay) {
       const sep = document.createElement('div');
-      sep.className = 'day-sep';
-      sep.textContent = day;
+      sep.className = 'day-sep'; sep.textContent = day;
       msgEl.appendChild(sep);
       lastDay = day;
     }
@@ -195,6 +229,7 @@ async function loadMessages() {
 
 function buildMsgEl(msg) {
   const isMe = me && msg.user_id === me.id;
+  const canDelete = isAdmin || isMe;
   const time = new Date(msg.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   const initial = (msg.username || '?')[0].toUpperCase();
 
@@ -202,12 +237,10 @@ function buildMsgEl(msg) {
   div.className = 'msg';
   div.dataset.id = msg.id;
 
-  // avatar
   const avatarHTML = msg.avatar_url
     ? `<img class="msg-avatar" src="${esc(msg.avatar_url)}" alt="" loading="lazy"/>`
     : `<div class="msg-avatar-ph">${esc(initial)}</div>`;
 
-  // reply reference
   let replyHTML = '';
   if (msg.reply_to_id && msg.reply_to_username) {
     const refText = msg.reply_to_content
@@ -218,7 +251,6 @@ function buildMsgEl(msg) {
     </div>`;
   }
 
-  // content
   let contentHTML = '';
   if (msg.image_url) {
     contentHTML = `<img class="msg-image" src="${esc(msg.image_url)}" alt="图片" loading="lazy" data-fullsrc="${esc(msg.image_url)}"/>`;
@@ -227,24 +259,41 @@ function buildMsgEl(msg) {
     contentHTML += `<div class="msg-text">${esc(msg.content)}</div>`;
   }
 
+  // 管理员标记
+  const isAdminMsg = false; // 可扩展：检查发送者是否是管理员
+
+  // 操作按钮：回复所有人可用，删除仅自己或管理员
+  const deleteBtn = canDelete
+    ? `<button class="msg-action-btn delete-btn" title="删除">🗑 删除</button>`
+    : '';
+
   div.innerHTML = `
     <div class="msg-avatar-wrap">${avatarHTML}</div>
     <div class="msg-body">
       ${replyHTML}
       <div class="msg-meta">
         <span class="msg-username${isMe ? ' is-me' : ''}">${esc(msg.username)}</span>
+        ${isAdmin && !isMe ? '<span class="admin-viewing-tag">👑</span>' : ''}
         <span class="msg-time">${time}</span>
       </div>
       ${contentHTML}
     </div>
     <div class="msg-actions">
       <button class="msg-action-btn reply-btn" title="回复">↩ 回复</button>
+      ${deleteBtn}
     </div>`;
 
-  // reply click
   div.querySelector('.reply-btn').addEventListener('click', () => setReply(msg));
 
-  // image click → fullscreen
+  div.querySelector('.delete-btn')?.addEventListener('click', async () => {
+    if (!confirm('确定删除这条消息？')) return;
+    const { error } = await sb.from('messages').delete().eq('id', msg.id);
+    if (error) { toast('删除失败，权限不足'); return; }
+    div.style.opacity = '0';
+    div.style.transition = 'opacity .3s';
+    setTimeout(() => div.remove(), 300);
+  });
+
   const imgEl = div.querySelector('.msg-image');
   if (imgEl) {
     imgEl.addEventListener('click', () => {
@@ -253,7 +302,6 @@ function buildMsgEl(msg) {
     });
   }
 
-  // scroll to referenced message
   if (msg.reply_to_id) {
     div.querySelector('.msg-reply-ref')?.addEventListener('click', () => scrollToMsg(msg.reply_to_id));
   }
@@ -281,7 +329,6 @@ function scrollToMsg(id) {
 ══════════════════════════════════ */
 async function sendMessage() {
   if (!me || !currentChannel) return;
-
   const input = document.getElementById('msg-input');
   const content = input.value.trim();
   if (!content) return;
@@ -289,17 +336,7 @@ async function sendMessage() {
   const btn = document.getElementById('btn-send');
   btn.disabled = true;
 
-  const name = me.user_metadata?.user_name || me.email?.split('@')[0] || '用户';
-  const avatar = me.user_metadata?.avatar_url || null;
-
-  const payload = {
-    channel_id: currentChannel.id,
-    user_id: me.id,
-    username: name,
-    avatar_url: avatar,
-    content,
-  };
-
+  const payload = { channel_id: currentChannel.id, content };
   if (replyTo) {
     payload.reply_to_id = replyTo.id;
     payload.reply_to_username = replyTo.username;
@@ -307,12 +344,8 @@ async function sendMessage() {
   }
 
   const { error } = await sb.from('messages').insert(payload);
-  if (error) { toast('发送失败'); }
-  else {
-    input.value = '';
-    input.style.height = 'auto';
-    clearReply();
-  }
+  if (error) toast('发送失败');
+  else { input.value = ''; input.style.height = 'auto'; clearReply(); }
 
   btn.disabled = false;
   input.focus();
@@ -333,23 +366,12 @@ async function uploadAndSend(file) {
   const ext = file.name.split('.').pop() || 'jpg';
   const path = `${me.id}/${Date.now()}.${ext}`;
 
-  const { error: upErr } = await sb.storage.from('chat-images').upload(path, file, { upsert: false });
+  const { error: upErr } = await sb.storage.from('chat-images').upload(path, file);
   if (upErr) { toast('上传失败：' + upErr.message); ind.remove(); return; }
 
   const { data } = sb.storage.from('chat-images').getPublicUrl(path);
-  const imageUrl = data.publicUrl;
 
-  const name = me.user_metadata?.user_name || me.email?.split('@')[0] || '用户';
-  const avatar = me.user_metadata?.avatar_url || null;
-
-  const payload = {
-    channel_id: currentChannel.id,
-    user_id: me.id,
-    username: name,
-    avatar_url: avatar,
-    content: null,
-    image_url: imageUrl,
-  };
+  const payload = { channel_id: currentChannel.id, content: null, image_url: data.publicUrl };
   if (replyTo) {
     payload.reply_to_id = replyTo.id;
     payload.reply_to_username = replyTo.username;
@@ -378,9 +400,9 @@ function subscribeRealtime() {
       const empty = msgEl.querySelector('.empty-state');
       if (empty) msgEl.innerHTML = '';
 
-      // day separator
       const day = new Date(msg.created_at).toLocaleDateString('zh-CN');
-      const lastSep = msgEl.querySelector('.day-sep:last-of-type');
+      const seps = msgEl.querySelectorAll('.day-sep');
+      const lastSep = seps[seps.length - 1];
       if (!lastSep || lastSep.textContent !== day) {
         const sep = document.createElement('div');
         sep.className = 'day-sep'; sep.textContent = day;
@@ -390,11 +412,18 @@ function subscribeRealtime() {
       msgEl.appendChild(buildMsgEl(msg));
       scrollBottom();
     })
+    .on('postgres_changes', {
+      event: 'DELETE', schema: 'public', table: 'messages',
+      filter: `channel_id=eq.${currentChannel.id}`
+    }, payload => {
+      const el = document.querySelector(`.msg[data-id="${payload.old.id}"]`);
+      if (el) { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }
+    })
     .subscribe();
 }
 
 /* ══════════════════════════════════
-   PRESENCE (Online Users)
+   PRESENCE
 ══════════════════════════════════ */
 function setupPresence() {
   if (presenceChannel) sb.removeChannel(presenceChannel);
@@ -410,9 +439,7 @@ function setupPresence() {
     .on('presence', { event: 'sync' }, () => {
       const state = presenceChannel.presenceState();
       onlineUsers = {};
-      Object.values(state).forEach(arr => {
-        arr.forEach(u => { onlineUsers[u.user_id] = u; });
-      });
+      Object.values(state).forEach(arr => arr.forEach(u => { onlineUsers[u.user_id] = u; }));
       renderOnlineUsers();
     })
     .subscribe(async status => {
@@ -450,8 +477,7 @@ function renderOnlineUsers() {
 ══════════════════════════════════ */
 function setReply(msg) {
   replyTo = msg;
-  const bar = document.getElementById('reply-bar');
-  bar.style.display = 'flex';
+  document.getElementById('reply-bar').style.display = 'flex';
   document.getElementById('reply-user').textContent = msg.username;
   document.getElementById('reply-preview').textContent = msg.content
     ? (msg.content.length > 50 ? msg.content.slice(0, 50) + '…' : msg.content)
@@ -487,53 +513,43 @@ function buildEmojiPicker() {
    UI BINDINGS
 ══════════════════════════════════ */
 function bindUI() {
-  // Login
   document.getElementById('login-btn').addEventListener('click', () => {
     sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: REDIRECT_URL } });
   });
 
-  // Logout
   document.getElementById('btn-logout').addEventListener('click', () => sb.auth.signOut());
 
-  // Send on click
   document.getElementById('btn-send').addEventListener('click', sendMessage);
 
-  // Send on Enter (Shift+Enter = newline)
   document.getElementById('msg-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  // Auto-resize textarea
   document.getElementById('msg-input').addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 140) + 'px';
   });
 
-  // Emoji picker toggle
   document.getElementById('btn-emoji').addEventListener('click', e => {
     e.stopPropagation();
     const picker = document.getElementById('emoji-picker');
     picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
   });
 
-  document.addEventListener('click', e => {
-    const picker = document.getElementById('emoji-picker');
-    if (!e.target.closest('#emoji-picker') && !e.target.closest('#btn-emoji')) {
-      picker.style.display = 'none';
-    }
+  document.addEventListener('click', () => {
+    document.getElementById('emoji-picker').style.display = 'none';
   });
 
-  // Image upload
   document.getElementById('img-input').addEventListener('change', e => {
     const file = e.target.files[0];
     if (file) { uploadAndSend(file); e.target.value = ''; }
   });
 
-  // Reply cancel
   document.getElementById('reply-cancel').addEventListener('click', clearReply);
 
-  // Add channel
+  // 新建频道（管理员专属）
   document.getElementById('btn-add-channel').addEventListener('click', () => {
+    if (!isAdmin) { toast('⛔ 只有管理员可以创建频道'); return; }
     document.getElementById('new-channel-name').value = '';
     document.getElementById('new-channel-desc').value = '';
     document.getElementById('modal-channel').style.display = 'flex';
@@ -555,23 +571,22 @@ function bindUI() {
     if (e.key === 'Enter') document.getElementById('modal-ok').click();
   });
 
-  // Image modal close
   document.getElementById('modal-img-close').addEventListener('click', () => {
     document.getElementById('modal-img').style.display = 'none';
   });
+
   document.getElementById('modal-img').addEventListener('click', e => {
     if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
   });
 
-  // Mobile sidebar
   document.getElementById('mobile-menu-btn').addEventListener('click', () => {
     document.getElementById('sidebar').classList.toggle('open');
   });
+
   document.getElementById('sidebar-toggle').addEventListener('click', () => {
     document.getElementById('sidebar').classList.remove('open');
   });
 
-  // Close modal on overlay click
   document.getElementById('modal-channel').addEventListener('click', e => {
     if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
   });
@@ -596,4 +611,8 @@ function toast(msg, duration = 2800) {
 }
 
 /* ── START ── */
-init();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
