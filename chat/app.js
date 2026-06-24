@@ -90,6 +90,7 @@ async function showApp(user) {
   await checkAdmin();
 
   await loadChannels();
+  await loadAnnouncements();
   setupPresence();
 }
 
@@ -280,10 +281,12 @@ function buildMsgEl(msg) {
     </div>
     <div class="msg-actions">
       <button class="msg-action-btn reply-btn" title="回复">↩ 回复</button>
+      <button class="msg-action-btn report-btn" title="举报">🚨 举报</button>
       ${deleteBtn}
     </div>`;
 
-  div.querySelector('.reply-btn').addEventListener('click', () => setReply(msg));
+  div.querySelector(".reply-btn").addEventListener("click", () => setReply(msg));
+  div.querySelector(".report-btn")?.addEventListener("click", () => reportMsg(msg));
 
   div.querySelector('.delete-btn')?.addEventListener('click', async () => {
     if (!confirm('确定删除这条消息？')) return;
@@ -425,6 +428,20 @@ function subscribeRealtime() {
 /* ══════════════════════════════════
    PRESENCE
 ══════════════════════════════════ */
+async function loadAnnouncements() {
+  const { data } = await sb.from("announcements")
+    .select("*").eq("pinned", true).order("created_at", { ascending: false }).limit(3);
+  const existing = document.getElementById("announcement-bar");
+  if (existing) existing.remove();
+  if (!data || data.length === 0) return;
+  const bar = document.createElement("div");
+  bar.id = "announcement-bar";
+  bar.className = "announcement-bar";
+  bar.innerHTML = data.map(a => `<div class="announce-item"><span class="announce-icon">📢</span><span>${esc(a.content)}</span></div>`).join("");
+  document.querySelector(".chat-main").insertBefore(bar, document.getElementById("messages"));
+}
+
+
 function setupPresence() {
   if (presenceChannel) sb.removeChannel(presenceChannel);
 
@@ -484,6 +501,24 @@ function setReply(msg) {
     : '[图片]';
   document.getElementById('msg-input').focus();
 }
+
+async function reportMsg(msg) {
+  if (!me) { toast("请先登录"); return; }
+  if (msg.user_id === me.id) { toast("不能举报自己的消息"); return; }
+  const reason = prompt("举报原因（可选）：");
+  if (reason === null) return;
+  const { error } = await sb.from("reports").insert({
+    message_id: msg.id,
+    reported_by: me.id,
+    reported_user_id: msg.user_id,
+    reported_username: msg.username,
+    reason: reason || null,
+    status: "pending",
+  });
+  if (error) { toast("举报失败"); return; }
+  toast("✓ 举报已提交，管理员将会处理");
+}
+
 
 function clearReply() {
   replyTo = null;
