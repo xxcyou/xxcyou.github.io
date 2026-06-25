@@ -1,21 +1,19 @@
 /* ═══════════════════════════════════════════════════
-   NEXUS Chat · app.js  v2.0
+   NEXUS Chat · app.js  v3.0  Dock Edition
 ═══════════════════════════════════════════════════ */
 
 const SUPABASE_URL = 'https://xoazpnamzmluqedmggty.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvYXpwbmFtem1sdXFlZG1nZ3R5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjE1MzksImV4cCI6MjA5Nzc5NzUzOX0.4THXg-WGVHZzQMkM4gaH-W7QOTden58ICRiLa1q_y_k';
 const REDIRECT_URL = 'https://www.xxcyou.com/chat';
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { flowType: 'pkce' }
-});
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'pkce' } });
 
-let me = null, isAdmin = false;
+let me = null, isAdmin = false, myProfile = null;
 let channels = [], currentChannel = null;
 let realtimeSub = null, replyTo = null;
 let presenceChannel = null, onlineUsers = {};
 let tokenTimer = null, currentToken = null;
-let activeMenu = null;
+let activeMenu = null, activePanel = null;
 
 const EMOJIS = [
   '😀','😂','🤣','😊','😍','🥰','😎','🤔','😅','😭','😤','🥳',
@@ -30,16 +28,12 @@ async function init() {
   bindUI();
 
   const search = window.location.search;
-  const hash = window.location.hash;
-
-  // 处理错误
   if (search.includes('error=')) {
     const p = new URLSearchParams(search);
     toast('登录失败：' + (p.get('error_description') || p.get('error')), 4000);
     window.history.replaceState(null, '', REDIRECT_URL);
   }
 
-  // 先注册 onAuthStateChange，确保回调不被遗漏
   let appStarted = false;
   sb.auth.onAuthStateChange(async (event, session) => {
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && !appStarted) {
@@ -52,13 +46,8 @@ async function init() {
     }
   });
 
-  // PKCE 回调：有 code 参数时让 supabase 处理
-  if (search.includes('code=')) {
-    // supabase 会自动通过 onAuthStateChange 触发 SIGNED_IN
-    return;
-  }
+  if (search.includes('code=')) return;
 
-  // 普通刷新：检查已有 session
   const { data: { session } } = await sb.auth.getSession();
   if (session && !appStarted) {
     appStarted = true;
@@ -70,7 +59,7 @@ async function init() {
 
 /* ══════════════════════════════════ AUTH ══════════════════════════════════ */
 function showAuth() {
-  me = null; isAdmin = false;
+  me = null; isAdmin = false; myProfile = null;
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   cleanupPresence();
@@ -81,19 +70,8 @@ async function showApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
-  const name = user.user_metadata?.user_name || user.email?.split('@')[0] || '用户';
-  const avatar = user.user_metadata?.avatar_url || null;
-
-  document.getElementById('me-name').textContent = name;
-  if (avatar) {
-    document.getElementById('me-avatar').src = avatar;
-    document.getElementById('me-avatar').style.display = 'block';
-    document.getElementById('me-avatar-ph').style.display = 'none';
-  } else {
-    document.getElementById('me-avatar-ph').textContent = name[0].toUpperCase();
-  }
-
   await checkAdmin();
+  await loadProfile();
   await loadAnnouncements();
   await loadChannels();
   setupPresence();
@@ -103,30 +81,175 @@ async function showApp(user) {
 async function checkAdmin() {
   const { data } = await sb.from('admins').select('user_id').eq('user_id', me.id).single();
   isAdmin = !!data;
-
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin ? '' : 'none';
   });
+  // Show admin dock button
+  const adminBtn = document.getElementById('dock-admin');
+  if (adminBtn) adminBtn.style.display = isAdmin ? 'flex' : 'none';
+}
 
-  const nameEl = document.getElementById('me-name');
-  if (isAdmin && !nameEl.querySelector('.admin-tag')) {
-    const tag = document.createElement('span');
-    tag.className = 'admin-tag'; tag.textContent = 'ADMIN';
-    nameEl.appendChild(tag);
-  }
+/* ══════════════════════════════════ PROFILE ══════════════════════════════════ */
+async function loadProfile() {
+  const ghName = me.user_metadata?.user_name || me.email?.split('@')[0] || '用户';
+  const ghAvatar = me.user_metadata?.avatar_url || null;
 
-  const meWrap = document.getElementById('me-wrap');
-  const tokenBtn = document.getElementById('btn-token');
-  if (isAdmin) {
-    meWrap.style.cursor = 'pointer';
-    meWrap.title = '👑 进入管理后台';
-    meWrap.onclick = () => window.location.href = '/chat/admin';
-    tokenBtn.style.display = 'flex';
+  // Try to load from profiles table
+  const { data } = await sb.from('profiles').select('*').eq('user_id', me.id).single();
+
+  if (data) {
+    myProfile = data;
   } else {
-    meWrap.style.cursor = 'default';
-    meWrap.onclick = null;
-    tokenBtn.style.display = 'flex'; // 所有登录用户都能获取验证码
+    // Create profile on first login
+    const { data: newProf } = await sb.from('profiles').insert({
+      user_id: me.id,
+      github_username: ghName,
+      display_name: ghName,
+      avatar_url: ghAvatar,
+    }).select().single();
+    myProfile = newProf || { github_username: ghName, display_name: ghName, avatar_url: ghAvatar };
   }
+
+  updateDockAvatar();
+  updateProfilePanel();
+}
+
+function updateDockAvatar() {
+  if (!myProfile) return;
+  const name = myProfile.display_name || myProfile.github_username || '我';
+  const avatar = myProfile.avatar_url;
+
+  // Dock center
+  const imgEl = document.getElementById('dock-avatar-img');
+  const phEl  = document.getElementById('dock-avatar-ph');
+  const nameEl = document.getElementById('dock-display-name');
+
+  if (avatar) {
+    imgEl.src = avatar; imgEl.style.display = 'block'; phEl.style.display = 'none';
+  } else {
+    phEl.textContent = name[0].toUpperCase(); imgEl.style.display = 'none'; phEl.style.display = 'flex';
+  }
+
+  // Show admin tag under avatar if admin
+  if (nameEl) {
+    nameEl.innerHTML = esc(name.length > 6 ? name.slice(0,6)+'…' : name);
+    if (isAdmin) {
+      nameEl.innerHTML += ' <span class="dock-admin-tag">ADM</span>';
+    }
+  }
+}
+
+function updateProfilePanel() {
+  if (!myProfile) return;
+  const ghName = myProfile.github_username || me.user_metadata?.user_name || '';
+  const dispName = myProfile.display_name || ghName;
+  const avatar = myProfile.avatar_url;
+
+  document.getElementById('profile-display-name').value = dispName;
+  document.getElementById('profile-github-name').textContent = '@' + ghName + ' · GitHub 用户名不可修改';
+
+  const imgEl = document.getElementById('profile-avatar-img');
+  const phEl  = document.getElementById('profile-avatar-ph');
+  if (avatar) {
+    imgEl.src = avatar; imgEl.style.display = 'block'; phEl.style.display = 'none';
+  } else {
+    phEl.textContent = dispName[0].toUpperCase(); imgEl.style.display = 'none'; phEl.style.display = 'flex';
+  }
+}
+
+async function saveProfile() {
+  const displayName = document.getElementById('profile-display-name').value.trim();
+  if (!displayName) { toast('昵称不能为空'); return; }
+  if (displayName.length > 20) { toast('昵称最多20字'); return; }
+
+  const { error } = await sb.from('profiles').upsert({
+    user_id: me.id,
+    github_username: myProfile?.github_username || me.user_metadata?.user_name || '',
+    display_name: displayName,
+    avatar_url: myProfile?.avatar_url || null,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) { toast('保存失败：' + error.message); return; }
+  myProfile = { ...myProfile, display_name: displayName };
+  updateDockAvatar();
+  toast('✓ 昵称已保存');
+}
+
+async function uploadAvatar(file) {
+  if (file.size > 2 * 1024 * 1024) { toast('头像不能超过 2MB'); return; }
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${me.id}/avatar.${ext}`;
+
+  const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: true });
+  if (upErr) { toast('上传失败：' + upErr.message); return; }
+
+  const { data } = sb.storage.from('avatars').getPublicUrl(path);
+  const url = data.publicUrl + '?t=' + Date.now(); // bust cache
+
+  const { error } = await sb.from('profiles').upsert({
+    user_id: me.id,
+    github_username: myProfile?.github_username || '',
+    display_name: myProfile?.display_name || '',
+    avatar_url: url,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) { toast('保存头像失败'); return; }
+  myProfile = { ...myProfile, avatar_url: url };
+  updateDockAvatar();
+  updateProfilePanel();
+  toast('✓ 头像已更新');
+}
+
+/* ══════════════════════════════════ DOCK ══════════════════════════════════ */
+function openPanel(panelId) {
+  // Close all panels
+  document.querySelectorAll('.dock-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
+  removeOverlay();
+
+  if (activePanel === panelId) {
+    activePanel = null;
+    return;
+  }
+
+  const panel = document.getElementById('panel-' + panelId);
+  if (!panel) return;
+
+  panel.style.display = 'flex';
+  activePanel = panelId;
+
+  // Mark active dock btn
+  const btn = document.getElementById('dock-' + panelId);
+  if (btn) btn.classList.add('active');
+
+  // Add overlay to close on outside click
+  addOverlay(() => closePanel());
+}
+
+function closePanel() {
+  document.querySelectorAll('.dock-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
+  activePanel = null;
+  removeOverlay();
+}
+
+function addOverlay(cb) {
+  removeOverlay();
+  const el = document.createElement('div');
+  el.className = 'panel-overlay'; el.id = 'panel-overlay';
+  el.addEventListener('click', cb);
+  document.body.appendChild(el);
+}
+
+function removeOverlay() {
+  document.getElementById('panel-overlay')?.remove();
+}
+
+/* Dock collapse */
+function toggleDock() {
+  document.getElementById('dock-wrap').classList.toggle('collapsed');
 }
 
 /* ══════════════════════════════════ CHANNELS ══════════════════════════════════ */
@@ -143,17 +266,16 @@ function renderChannelList() {
   channels.forEach(ch => {
     const el = document.createElement('div');
     el.className = 'channel-item' + (currentChannel?.id === ch.id ? ' active' : '');
-    const delBtn = isAdmin
-      ? `<button class="ch-delete-btn" data-id="${ch.id}" title="删除">✕</button>` : '';
+    const delBtn = isAdmin ? `<button class="ch-delete-btn" data-id="${ch.id}">✕</button>` : '';
     el.innerHTML = `<span class="ch-hash">#</span><span class="ch-name">${esc(ch.name)}</span>${delBtn}`;
     el.addEventListener('click', e => {
       if (e.target.classList.contains('ch-delete-btn')) return;
       selectChannel(ch);
-      document.getElementById('sidebar').classList.remove('open');
+      closePanel();
     });
     el.querySelector('.ch-delete-btn')?.addEventListener('click', async e => {
       e.stopPropagation();
-      if (!confirm(`删除频道 #${ch.name}？`)) return;
+      if (!confirm(`删除 #${ch.name}？`)) return;
       const { error } = await sb.from('channels').delete().eq('id', ch.id);
       if (error) { toast('删除失败'); return; }
       channels = channels.filter(c => c.id !== ch.id);
@@ -203,8 +325,7 @@ async function loadMessages() {
     return;
   }
   if (!data?.length) {
-    msgEl.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">💬</div>
+    msgEl.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div>
       <div class="empty-title">#${esc(currentChannel.name)}</div>
       <div class="empty-sub">来说第一句话吧</div></div>`;
     return;
@@ -249,7 +370,6 @@ function buildMsgEl(msg) {
   if (msg.image_url) contentHTML = `<img class="msg-image" src="${esc(msg.image_url)}" alt="" loading="lazy" data-fullsrc="${esc(msg.image_url)}"/>`;
   if (msg.content) contentHTML += `<div class="msg-text">${esc(msg.content)}</div>`;
 
-  // 3-dot menu items
   let menuItems = `<button class="menu-item reply-btn"><span class="menu-icon">↩</span>回复</button>`;
   if (!isMe) menuItems += `<button class="menu-item report-btn"><span class="menu-icon">🚨</span>举报</button>`;
   if (canDelete) menuItems += `<button class="menu-item danger delete-btn"><span class="menu-icon">🗑</span>删除</button>`;
@@ -266,11 +386,10 @@ function buildMsgEl(msg) {
       ${contentHTML}
     </div>
     <div class="msg-actions">
-      <button class="msg-action-trigger" title="操作">⋯</button>
+      <button class="msg-action-trigger">⋯</button>
       <div class="msg-action-menu">${menuItems}</div>
     </div>`;
 
-  // trigger 3-dot menu with fixed positioning
   const trigger = div.querySelector('.msg-action-trigger');
   const menu = div.querySelector('.msg-action-menu');
   trigger.addEventListener('click', e => {
@@ -278,12 +397,7 @@ function buildMsgEl(msg) {
     if (activeMenu && activeMenu !== menu) activeMenu.classList.remove('open');
     const rect = trigger.getBoundingClientRect();
     const menuH = 160;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    if (spaceBelow < menuH) {
-      menu.style.top = (rect.top - menuH - 4) + 'px';
-    } else {
-      menu.style.top = (rect.bottom + 4) + 'px';
-    }
+    menu.style.top = (rect.top - menuH - 4) + 'px';
     menu.style.right = (window.innerWidth - rect.right) + 'px';
     menu.classList.toggle('open');
     activeMenu = menu.classList.contains('open') ? menu : null;
@@ -295,13 +409,13 @@ function buildMsgEl(msg) {
     menu.classList.remove('open');
     if (!confirm('确定删除？')) return;
     const { error } = await sb.from('messages').delete().eq('id', msg.id);
-    if (error) { toast('删除失败，权限不足'); return; }
+    if (error) { toast('删除失败'); return; }
     div.style.opacity = '0'; div.style.transition = 'opacity .3s';
     setTimeout(() => div.remove(), 300);
   });
   div.querySelector('.ban-msg-btn')?.addEventListener('click', async () => {
     menu.classList.remove('open');
-    if (!confirm(`封禁用户 ${msg.username}？`)) return;
+    if (!confirm(`封禁 ${msg.username}？`)) return;
     const { error } = await sb.from('banned_users').insert({
       user_id: msg.user_id, github_name: msg.username, banned_by: me.id, reason: '管理员操作'
     });
@@ -388,8 +502,7 @@ function subscribeRealtime() {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages',
       filter: `channel_id=eq.${currentChannel.id}` }, payload => {
       const msgEl = document.getElementById('messages');
-      const empty = msgEl.querySelector('.empty-state');
-      if (empty) msgEl.innerHTML = '';
+      if (msgEl.querySelector('.empty-state')) msgEl.innerHTML = '';
       const day = new Date(payload.new.created_at).toLocaleDateString('zh-CN');
       const seps = msgEl.querySelectorAll('.day-sep');
       const lastSep = seps[seps.length-1];
@@ -412,8 +525,8 @@ function subscribeRealtime() {
 /* ══════════════════════════════════ PRESENCE ══════════════════════════════════ */
 function setupPresence() {
   if (presenceChannel) sb.removeChannel(presenceChannel);
-  const name = me.user_metadata?.user_name || me.email?.split('@')[0] || '用户';
-  const avatar = me.user_metadata?.avatar_url || null;
+  const name = myProfile?.display_name || me.user_metadata?.user_name || '用户';
+  const avatar = myProfile?.avatar_url || null;
   presenceChannel = sb.channel('online-users', { config: { presence: { key: me.id } } });
   presenceChannel
     .on('presence', { event: 'sync' }, () => {
@@ -453,8 +566,7 @@ function renderOnlineUsers() {
 async function loadAnnouncements() {
   const { data } = await sb.from('announcements')
     .select('*').eq('pinned', true).order('created_at', { ascending: false }).limit(3);
-  const existing = document.getElementById('announcement-bar');
-  if (existing) existing.remove();
+  document.getElementById('announcement-bar')?.remove();
   if (!data?.length) return;
   const bar = document.createElement('div');
   bar.id = 'announcement-bar'; bar.className = 'announcement-bar';
@@ -496,21 +608,16 @@ function clearReply() {
 /* ══════════════════════════════════ TOKEN ══════════════════════════════════ */
 async function generateToken() {
   if (!me) { toast('请先登录'); return; }
-  // 先删除旧的
   await sb.from('temp_tokens').delete().eq('user_id', me.id);
-
-  // 生成6位数字
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const { data: { session } } = await sb.auth.getSession();
   const accessToken = session?.access_token;
   if (!accessToken) { toast('获取 token 失败，请重新登录'); return; }
-
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
   const { error } = await sb.from('temp_tokens').insert({
     code, user_id: me.id, access_token: accessToken, expires_at: expiresAt
   });
   if (error) { toast('生成失败：' + error.message); return; }
-
   currentToken = code;
   document.getElementById('token-code').textContent = code;
   startTokenTimer(300);
@@ -552,11 +659,13 @@ function buildEmojiPicker() {
 
 /* ══════════════════════════════════ UI BINDINGS ══════════════════════════════════ */
 function bindUI() {
+  // Auth
   document.getElementById('login-btn').addEventListener('click', () =>
     sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: REDIRECT_URL } }));
   document.getElementById('btn-logout').addEventListener('click', () => sb.auth.signOut());
-  document.getElementById('btn-send').addEventListener('click', sendMessage);
 
+  // Send
+  document.getElementById('btn-send').addEventListener('click', sendMessage);
   document.getElementById('msg-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
@@ -569,40 +678,17 @@ function bindUI() {
   document.getElementById('btn-emoji').addEventListener('click', e => {
     e.stopPropagation();
     const picker = document.getElementById('emoji-picker');
-    const tw = document.getElementById('token-widget');
-    tw.style.display = 'none';
     picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
   });
-
-  // Token
-  document.getElementById('btn-token').addEventListener('click', async e => {
-    e.stopPropagation();
-    const tw = document.getElementById('token-widget');
-    const picker = document.getElementById('emoji-picker');
-    picker.style.display = 'none';
-    if (tw.style.display === 'none') {
-      tw.style.display = 'block';
-      await generateToken();
-    } else {
-      tw.style.display = 'none';
-    }
-  });
-  document.getElementById('token-copy-btn').addEventListener('click', () => {
-    if (!currentToken) { toast('请先生成验证码'); return; }
-    navigator.clipboard.writeText(currentToken).then(() => toast('✓ 验证码已复制'));
-  });
-  document.getElementById('token-refresh-btn').addEventListener('click', generateToken);
-
-  // Close popups on outside click
   document.addEventListener('click', e => {
     if (!e.target.closest('#emoji-picker') && !e.target.closest('#btn-emoji'))
       document.getElementById('emoji-picker').style.display = 'none';
-    if (!e.target.closest('#token-widget') && !e.target.closest('#btn-token'))
-      document.getElementById('token-widget').style.display = 'none';
     if (!e.target.closest('.msg-action-menu') && !e.target.closest('.msg-action-trigger')) {
       document.querySelectorAll('.msg-action-menu.open').forEach(m => m.classList.remove('open'));
       activeMenu = null;
     }
+    if (!e.target.closest('#token-widget') && !e.target.closest('#dock-token'))
+      document.getElementById('token-widget').style.display = 'none';
   });
 
   // Image upload
@@ -614,7 +700,7 @@ function bindUI() {
   // Reply cancel
   document.getElementById('reply-cancel').addEventListener('click', clearReply);
 
-  // Add channel modal
+  // Channel modal
   document.getElementById('btn-add-channel').addEventListener('click', () => {
     if (!isAdmin) { toast('⛔ 权限不足'); return; }
     document.getElementById('new-channel-name').value = '';
@@ -644,47 +730,52 @@ function bindUI() {
     if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
   });
 
-  // Sidebar collapse
-  function updateSidebar(collapsed) {
-    const sidebar = document.getElementById('sidebar');
-    const tab = document.getElementById('sidebar-tab');
-    const app = document.getElementById('app');
-    if (collapsed) {
-      sidebar.classList.add('collapsed');
-      app.classList.remove('sidebar-open');
-      tab.style.display = 'flex';
-      tab.textContent = '›';
+  // Mobile menu btn → open channel panel
+  document.getElementById('mobile-menu-btn').addEventListener('click', () => openPanel('channels'));
+
+  // ── DOCK ──
+  document.getElementById('dock-peek').addEventListener('click', toggleDock);
+
+  document.getElementById('dock-channels').addEventListener('click', e => {
+    e.stopPropagation();
+    openPanel('channels');
+  });
+  document.getElementById('dock-members').addEventListener('click', e => {
+    e.stopPropagation();
+    openPanel('members');
+  });
+  document.getElementById('dock-profile').addEventListener('click', e => {
+    e.stopPropagation();
+    updateProfilePanel();
+    openPanel('profile');
+  });
+  document.getElementById('dock-admin')?.addEventListener('click', () => {
+    window.location.href = '/chat/admin';
+  });
+  document.getElementById('dock-token').addEventListener('click', async e => {
+    e.stopPropagation();
+    closePanel();
+    const tw = document.getElementById('token-widget');
+    if (tw.style.display === 'none') {
+      tw.style.display = 'block';
+      await generateToken();
     } else {
-      sidebar.classList.remove('collapsed');
-      app.classList.add('sidebar-open');
-      tab.style.display = 'none';
+      tw.style.display = 'none';
     }
-  }
-
-  // Default: sidebar open on desktop, closed on mobile
-  if (window.innerWidth > 700) {
-    updateSidebar(false);
-  } else {
-    updateSidebar(true);
-  }
-
-  document.getElementById('sidebar-collapse-btn').addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    updateSidebar(!sidebar.classList.contains('collapsed'));
   });
 
-  document.getElementById('sidebar-tab').addEventListener('click', () => {
-    updateSidebar(false);
+// Token widget
+  document.getElementById('token-copy-btn').addEventListener('click', () => {
+    if (!currentToken) { toast('请先生成验证码'); return; }
+    navigator.clipboard.writeText(currentToken).then(() => toast('✓ 验证码已复制'));
   });
+  document.getElementById('token-refresh-btn').addEventListener('click', generateToken);
 
-  // Overlay click closes sidebar
-  document.getElementById('sidebar-overlay').addEventListener('click', () => updateSidebar(true));
-
-  // Mobile menu
-  document.getElementById('mobile-menu-btn').addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar.classList.contains('collapsed')) updateSidebar(false);
-    else updateSidebar(true);
+  // Profile
+  document.getElementById('profile-save-btn').addEventListener('click', saveProfile);
+  document.getElementById('avatar-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) { uploadAvatar(file); e.target.value = ''; }
   });
 }
 
