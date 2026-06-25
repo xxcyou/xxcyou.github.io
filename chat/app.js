@@ -30,24 +30,42 @@ async function init() {
   bindUI();
 
   const search = window.location.search;
-  if (search.includes('code=')) {
-    await sb.auth.getSession();
-    window.history.replaceState(null, '', REDIRECT_URL);
-  }
+  const hash = window.location.hash;
+
+  // 处理错误
   if (search.includes('error=')) {
     const p = new URLSearchParams(search);
     toast('登录失败：' + (p.get('error_description') || p.get('error')), 4000);
     window.history.replaceState(null, '', REDIRECT_URL);
   }
 
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) await showApp(session.user);
-  else showAuth();
-
+  // 先注册 onAuthStateChange，确保回调不被遗漏
+  let appStarted = false;
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) await showApp(session.user);
-    else if (event === 'SIGNED_OUT') showAuth();
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && !appStarted) {
+      appStarted = true;
+      window.history.replaceState(null, '', REDIRECT_URL);
+      await showApp(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      appStarted = false;
+      showAuth();
+    }
   });
+
+  // PKCE 回调：有 code 参数时让 supabase 处理
+  if (search.includes('code=')) {
+    // supabase 会自动通过 onAuthStateChange 触发 SIGNED_IN
+    return;
+  }
+
+  // 普通刷新：检查已有 session
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && !appStarted) {
+    appStarted = true;
+    await showApp(session.user);
+  } else if (!session) {
+    showAuth();
+  }
 }
 
 /* ══════════════════════════════════ AUTH ══════════════════════════════════ */
