@@ -3,57 +3,68 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>NEXUS · 聊天室</title>
+  <title>NEXUS · Chat</title>
   <link rel="stylesheet" href="style.css"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<!-- AUTH SCREEN -->
+<!-- AUTH -->
 <div id="auth-screen">
-  <div class="auth-bg">
-    <div class="auth-grid"></div>
-    <div class="auth-glow g1"></div>
-    <div class="auth-glow g2"></div>
-  </div>
+  <div class="auth-particles"></div>
   <div class="auth-card">
-    <div class="auth-logo"><span class="logo-bracket">[</span>NEXUS<span class="logo-bracket">]</span></div>
-    <h1 class="auth-title">进入聊天空间</h1>
-    <p class="auth-sub">实时多频道 · GitHub 身份验证 · 端到端同步</p>
+    <div class="auth-logo">NEXUS CHAT</div>
+    <h1 class="auth-title">欢迎回来</h1>
+    <p class="auth-sub">实时多频道聊天室<br/>使用 GitHub 账号安全登录</p>
     <button id="login-btn" class="btn-login">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
       </svg>
       使用 GitHub 登录
     </button>
-    <p class="auth-hint">登录即表示你同意以文明方式使用本聊天室</p>
+    <p class="auth-hint">登录即表示同意以文明方式使用本聊天室</p>
   </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- APP -->
 <div id="app" style="display:none">
+
+  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-top">
-      <div class="app-logo"><span class="logo-bracket">[</span>N<span class="logo-bracket">]</span></div>
-      <button class="sidebar-toggle" id="sidebar-toggle">✕</button>
+      <div class="app-logo">[N] NEXUS</div>
+      <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="收起">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
     </div>
-    <div class="sidebar-section-label">频道</div>
+
+    <div class="sidebar-section">
+      <span>频道</span>
+      <span class="online-badge" id="online-count">0</span>
+    </div>
     <div id="channel-list" class="channel-list"></div>
-    <button class="btn-add-channel" id="btn-add-channel"><span>＋</span> 新建频道</button>
-    <div class="sidebar-section-label" style="margin-top:20px">
-      在线成员 <span class="online-badge" id="online-count">0</span>
+    <button class="btn-add-channel admin-only" id="btn-add-channel" style="display:none">
+      <span>＋</span><span> 新建频道</span>
+    </button>
+
+    <div class="sidebar-section" style="margin-top:12px">
+      <span>在线成员</span>
     </div>
-    <div id="online-list" class="online-list"></div>
+    <div id="online-list" class="online-section"></div>
+
     <div class="sidebar-footer">
-      <div class="me-avatar-wrap" id="me-avatar-link" title="点击进入管理后台" style="cursor:default">
-        <img id="me-avatar" src="" alt="" style="display:none"/>
-        <div id="me-avatar-placeholder" class="avatar-placeholder"></div>
-      </div>
-      <div class="me-info">
-        <div class="me-name" id="me-name"></div>
-        <div class="me-status">● 在线</div>
+      <div class="me-wrap" id="me-wrap" title="点击进入管理后台">
+        <div class="me-avatar-box">
+          <img id="me-avatar" class="me-avatar" src="" alt="" style="display:none"/>
+          <div id="me-avatar-ph" class="me-avatar-ph"></div>
+          <div class="me-online-dot"></div>
+        </div>
+        <div class="me-info">
+          <div class="me-name" id="me-name"></div>
+          <div class="me-status">● 在线</div>
+        </div>
       </div>
       <button class="btn-logout" id="btn-logout" title="退出">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -63,21 +74,27 @@
     </div>
   </aside>
 
+  <!-- MAIN -->
   <main class="chat-main">
     <header class="chat-header">
       <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
       <div class="chat-header-info">
         <span class="channel-hash">#</span>
         <span class="channel-title" id="channel-title">general</span>
+        <span class="channel-sep">·</span>
         <span class="channel-desc" id="channel-desc"></span>
       </div>
       <div class="header-right">
-        <span class="online-pill"><span class="pulse-dot"></span><span id="header-online">0</span> 在线</span>
+        <span class="online-pill">
+          <span class="pulse-dot"></span>
+          <span id="header-online">0</span> 在线
+        </span>
       </div>
     </header>
 
     <div id="messages" class="messages"></div>
 
+    <!-- REPLY BAR -->
     <div id="reply-bar" class="reply-bar" style="display:none">
       <div class="reply-inner">
         <span class="reply-icon">↩</span>
@@ -87,31 +104,44 @@
       <button id="reply-cancel" class="reply-cancel">✕</button>
     </div>
 
+    <!-- INPUT -->
     <div class="input-area">
       <button class="input-btn" id="btn-emoji" title="表情">😊</button>
-      <label class="input-btn" id="btn-image-label" title="图片">
+      <label class="input-btn" title="图片">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
           <polyline points="21 15 16 10 5 21"/>
         </svg>
         <input type="file" id="img-input" accept="image/*" style="display:none"/>
       </label>
+      <button class="input-btn" id="btn-token" title="获取验证码" style="display:none">🔑</button>
       <textarea id="msg-input" class="msg-input" placeholder="发消息…" rows="1"></textarea>
       <button class="btn-send" id="btn-send">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
+      <!-- EMOJI PICKER -->
       <div id="emoji-picker" class="emoji-picker" style="display:none"></div>
+      <!-- TOKEN WIDGET -->
+      <div id="token-widget" class="token-widget" style="display:none">
+        <div class="token-widget-title">🔑 Lua 验证码</div>
+        <div class="token-code" id="token-code">------</div>
+        <div class="token-timer" id="token-timer">有效期 5 分钟</div>
+        <button class="token-copy-btn" id="token-copy-btn">复制验证码</button>
+        <button class="token-refresh-btn" id="token-refresh-btn">↻ 重新生成</button>
+      </div>
     </div>
   </main>
 </div>
 
-<!-- MODALS -->
+<!-- CHANNEL MODAL -->
 <div id="modal-channel" class="modal-overlay" style="display:none">
   <div class="modal">
     <div class="modal-title">新建频道</div>
-    <input type="text" id="new-channel-name" class="modal-input" placeholder="频道名称（字母/数字/中文）" maxlength="32"/>
+    <input type="text" id="new-channel-name" class="modal-input" placeholder="频道名称" maxlength="32"/>
     <input type="text" id="new-channel-desc" class="modal-input" placeholder="频道描述（可选）" maxlength="100"/>
     <div class="modal-actions">
       <button class="btn-modal-cancel" id="modal-cancel">取消</button>
@@ -120,6 +150,7 @@
   </div>
 </div>
 
+<!-- IMAGE MODAL -->
 <div id="modal-img" class="modal-overlay modal-img-overlay" style="display:none">
   <img id="modal-img-src" src="" alt=""/>
   <button class="modal-img-close" id="modal-img-close">✕</button>
