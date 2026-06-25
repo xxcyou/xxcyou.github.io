@@ -731,7 +731,7 @@ function bindUI() {
   });
 
   // Mobile menu btn → open channel panel
-  document.getElementById('mobile-menu-btn').addEventListener('click', () => openPanel('channels'));
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => openPanel('channels'));
 
   // ── DOCK ──
   document.getElementById('dock-peek').addEventListener('click', toggleDock);
