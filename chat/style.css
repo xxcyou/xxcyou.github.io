@@ -147,18 +147,20 @@ body::before{
    SIDEBAR — Floating Drawer
 ═══════════════════════════════════════════════════ */
 .sidebar{
-  position:relative;z-index:50;
-  width:var(--sidebar-w);min-width:var(--sidebar-w);
+  position:fixed;left:0;top:0;bottom:0;z-index:80;
+  width:var(--sidebar-w);
   background:var(--glass);
   border-right:1px solid var(--border);
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
   display:flex;flex-direction:column;
-  transition:transform .3s cubic-bezier(.4,0,.2,1),width .3s;
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
   overflow:hidden;
+  box-shadow:4px 0 32px rgba(0,0,0,.4);
+  transform:translateX(0);
 }
 .sidebar.collapsed{
-  width:64px;min-width:64px;
+  transform:translateX(calc(-1 * var(--sidebar-w) + 48px));
 }
 .sidebar::before{
   content:'';position:absolute;inset:0;
@@ -187,6 +189,17 @@ body::before{
 .sidebar-collapse-btn:hover{background:var(--glass3);color:var(--text)}
 .sidebar-collapse-btn svg{transition:transform .3s}
 .sidebar.collapsed .sidebar-collapse-btn svg{transform:rotate(180deg)}
+.sidebar-tab{
+  position:fixed;left:0;top:50%;transform:translateY(-50%);
+  width:20px;height:60px;z-index:81;
+  background:var(--glass);border:1px solid var(--border2);
+  border-left:none;border-radius:0 10px 10px 0;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;backdrop-filter:blur(12px);
+  transition:all .2s;color:var(--text2);font-size:12px;
+  box-shadow:2px 0 12px rgba(0,0,0,.3);
+}
+.sidebar-tab:hover{background:var(--glass2);color:var(--accent);width:24px}
 
 /* channel list */
 .sidebar-section{
@@ -311,6 +324,11 @@ body::before{
 .chat-main{
   flex:1;display:flex;flex-direction:column;overflow:hidden;
   position:relative;
+  margin-left:48px;
+  transition:margin-left .3s cubic-bezier(.4,0,.2,1);
+}
+.sidebar-open .chat-main{
+  margin-left:var(--sidebar-w);
 }
 
 /* header */
@@ -431,9 +449,9 @@ body::before{
 .msg-action-trigger:hover{color:var(--text);border-color:var(--border3)}
 
 .msg-action-menu{
-  position:absolute;right:0;top:calc(100% + 4px);
+  position:fixed;
   background:var(--glass);border:1px solid var(--border2);
-  border-radius:10px;padding:4px;min-width:130px;z-index:100;
+  border-radius:10px;padding:4px;min-width:140px;z-index:999;
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   box-shadow:var(--shadow2);display:none;
 }
@@ -682,15 +700,9 @@ body::before{
    MOBILE
 ═══════════════════════════════════════════════════ */
 @media(max-width:700px){
-  .sidebar{
-    position:fixed;left:0;top:0;bottom:0;z-index:150;
-    transform:translateX(-100%);width:280px !important;min-width:280px !important;
-    box-shadow:8px 0 32px rgba(0,0,0,.5);
-  }
-  .sidebar.open{transform:translateX(0)}
-  .sidebar.collapsed{transform:translateX(-100%)}
+  .sidebar.collapsed{transform:translateX(calc(-1 * var(--sidebar-w)))}
+  .sidebar-open .chat-main,.chat-main{margin-left:0 !important}
   .mobile-menu-btn{display:flex}
-  .chat-main{width:100%}
   .input-area{padding:8px 10px 12px;gap:6px}
   .msg-input{font-size:15px;padding:8px 10px}
   .btn-send{padding:8px 10px}
@@ -705,3 +717,15 @@ body::before{
   .emoji-picker{width:240px;left:0}
   .token-widget{right:0;min-width:220px}
 }
+
+/* ── SIDEBAR OVERLAY (mobile backdrop) ── */
+.sidebar-overlay{
+  display:none;position:fixed;inset:0;z-index:79;
+  background:rgba(0,0,0,.5);backdrop-filter:blur(2px);
+}
+.sidebar-open .sidebar-overlay{display:block}
+@media(min-width:701px){.sidebar-overlay{display:none !important}}
+
+/* ── APP LAYOUT FIX ── */
+#app{position:relative;z-index:1;display:flex;height:100vh;overflow:hidden}
+.sidebar-open .chat-main{margin-left:var(--sidebar-w)}
