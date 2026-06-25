@@ -24,9 +24,6 @@ const EMOJIS = [
 
 /* ══════════════════════════════════ INIT ══════════════════════════════════ */
 async function init() {
-  buildEmojiPicker();
-  bindUI();
-
   const search = window.location.search;
   if (search.includes('error=')) {
     const p = new URLSearchParams(search);
@@ -45,6 +42,9 @@ async function init() {
       showAuth();
     }
   });
+
+  buildEmojiPicker();
+  bindUI();
 
   if (search.includes('code=')) return;
 
@@ -734,17 +734,17 @@ function bindUI() {
   document.getElementById('mobile-menu-btn')?.addEventListener('click', () => openPanel('channels'));
 
   // ── DOCK ──
-  document.getElementById('dock-peek').addEventListener('click', toggleDock);
+  document.getElementById('dock-peek')?.addEventListener('click', toggleDock);
 
-  document.getElementById('dock-channels').addEventListener('click', e => {
+  document.getElementById('dock-channels')?.addEventListener('click', e => {
     e.stopPropagation();
     openPanel('channels');
   });
-  document.getElementById('dock-members').addEventListener('click', e => {
+  document.getElementById('dock-members')?.addEventListener('click', e => {
     e.stopPropagation();
     openPanel('members');
   });
-  document.getElementById('dock-profile').addEventListener('click', e => {
+  document.getElementById('dock-profile')?.addEventListener('click', e => {
     e.stopPropagation();
     updateProfilePanel();
     openPanel('profile');
@@ -752,24 +752,24 @@ function bindUI() {
   document.getElementById('dock-admin')?.addEventListener('click', () => {
     window.location.href = '/chat/admin';
   });
-  document.getElementById('dock-token').addEventListener('click', async e => {
+  document.getElementById('dock-token')?.addEventListener('click', async e => {
     e.stopPropagation();
     closePanel();
     const tw = document.getElementById('token-widget');
-    if (tw.style.display === 'none') {
+    if (tw && tw.style.display === 'none') {
       tw.style.display = 'block';
       await generateToken();
-    } else {
+    } else if (tw) {
       tw.style.display = 'none';
     }
   });
 
 // Token widget
-  document.getElementById('token-copy-btn').addEventListener('click', () => {
+  document.getElementById('token-copy-btn')?.addEventListener('click', () => {
     if (!currentToken) { toast('请先生成验证码'); return; }
     navigator.clipboard.writeText(currentToken).then(() => toast('✓ 验证码已复制'));
   });
-  document.getElementById('token-refresh-btn').addEventListener('click', generateToken);
+  document.getElementById('token-refresh-btn')?.addEventListener('click', generateToken);
 
   // Profile
   document.getElementById('profile-save-btn').addEventListener('click', saveProfile);
