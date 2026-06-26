@@ -119,20 +119,23 @@ async function loadProfile() {
   const ghName = me.user_metadata?.user_name || me.email?.split('@')[0] || '用户';
   const ghAvatar = me.user_metadata?.avatar_url || null;
 
-  // Try to load from profiles table
-  const { data } = await sb.from('profiles').select('*').eq('user_id', me.id).single();
+  // Try load existing profile
+  const { data, error } = await sb.from('profiles').select('*').eq('user_id', me.id).single();
 
-  if (data) {
-    myProfile = data;
+  if (data && !error) {
+    // Always keep github_username in sync
+    myProfile = { ...data };
+    if (!myProfile.avatar_url) myProfile.avatar_url = ghAvatar;
   } else {
-    // Create profile on first login
-    const { data: newProf } = await sb.from('profiles').insert({
+    // First login - create profile
+    const insertData = {
       user_id: me.id,
       github_username: ghName,
       display_name: ghName,
       avatar_url: ghAvatar,
-    }).select().single();
-    myProfile = newProf || { github_username: ghName, display_name: ghName, avatar_url: ghAvatar };
+    };
+    const { data: newProf } = await sb.from('profiles').insert(insertData).select().single();
+    myProfile = newProf || insertData;
   }
 
   updateDockAvatar();
@@ -337,19 +340,25 @@ async function createChannel(name, desc) {
 
 /* ══════════════════════════════════ MESSAGES ══════════════════════════════════ */
 async function loadMessages() {
+  if (!currentChannel) return;
   const msgEl = document.getElementById('messages');
   msgEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-title">加载中…</div></div>';
 
   const { data, error } = await sb.from('messages')
-    .select('*').eq('channel_id', currentChannel.id)
-    .order('created_at', { ascending: true }).limit(120);
+    .select('*')
+    .eq('channel_id', currentChannel.id)
+    .order('created_at', { ascending: true })
+    .limit(120);
 
   msgEl.innerHTML = '';
+
   if (error) {
-    msgEl.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><div class="empty-title">加载失败</div></div>';
+    console.error('loadMessages error:', error);
+    msgEl.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><div class="empty-title">加载失败</div><div class="empty-sub">${esc(error.message)}</div></div>`;
     return;
   }
-  if (!data?.length) {
+
+  if (!data || data.length === 0) {
     msgEl.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div>
       <div class="empty-title">#${esc(currentChannel.name)}</div>
       <div class="empty-sub">来说第一句话吧</div></div>`;
