@@ -29,47 +29,7 @@
 <!-- APP -->
 <div id="app" style="display:none">
 
-  <!-- DOCK PANELS (hidden by default) -->
-  <div id="panel-channels" class="dock-panel" style="display:none">
-    <div class="panel-head">
-      <span>频道</span>
-      <span class="online-badge" id="online-count">0</span>
-      <button class="admin-only panel-add-btn" id="btn-add-channel" style="display:none">＋</button>
-    </div>
-    <div id="channel-list" class="channel-list"></div>
-  </div>
-
-  <div id="panel-members" class="dock-panel" style="display:none">
-    <div class="panel-head"><span>在线成员</span></div>
-    <div id="online-list" class="online-section"></div>
-  </div>
-
-  <div id="panel-profile" class="dock-panel" style="display:none">
-    <div class="panel-head"><span>个人中心</span></div>
-    <div class="profile-body">
-      <div class="profile-avatar-wrap">
-        <img id="profile-avatar-img" src="" alt=""/>
-        <div id="profile-avatar-ph" class="profile-avatar-ph"></div>
-        <label class="profile-avatar-edit" title="更换头像">
-          📷
-          <input type="file" id="avatar-input" accept="image/*" style="display:none"/>
-        </label>
-      </div>
-      <div class="profile-name-wrap">
-        <input type="text" id="profile-display-name" class="profile-input" placeholder="昵称" maxlength="20"/>
-        <div class="profile-github-name" id="profile-github-name"></div>
-      </div>
-      <button class="profile-save-btn" id="profile-save-btn">保存</button>
-      <button class="btn-logout profile-logout-btn" id="btn-logout">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-        </svg>
-        退出登录
-      </button>
-    </div>
-  </div>
-
-  <!-- MAIN -->
+  <!-- CHAT MAIN -->
   <main class="chat-main">
     <header class="chat-header">
       <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
@@ -117,10 +77,105 @@
           <polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
-      <!-- EMOJI PICKER -->
       <div id="emoji-picker" class="emoji-picker" style="display:none"></div>
     </div>
   </main>
+
+  <!-- DOCK PANELS -->
+  <div id="panel-channels" class="dock-panel" style="display:none">
+    <div class="panel-head">
+      <span>频道</span>
+      <span class="online-badge" id="online-count">0</span>
+      <button class="admin-only panel-add-btn" id="btn-add-channel" style="display:none">＋</button>
+    </div>
+    <div id="channel-list" class="channel-list"></div>
+  </div>
+
+  <div id="panel-members" class="dock-panel" style="display:none">
+    <div class="panel-head"><span>在线成员</span></div>
+    <div id="online-list" class="online-section"></div>
+  </div>
+
+  <div id="panel-profile" class="dock-panel" style="display:none">
+    <div class="panel-head"><span>个人中心</span></div>
+    <div class="profile-body">
+      <div class="profile-avatar-wrap">
+        <img id="profile-avatar-img" src="" alt="" style="display:none"/>
+        <div id="profile-avatar-ph" class="profile-avatar-ph"></div>
+        <label class="profile-avatar-edit" title="更换头像">
+          📷
+          <input type="file" id="avatar-input" accept="image/*" style="display:none"/>
+        </label>
+      </div>
+      <div class="profile-name-wrap">
+        <input type="text" id="profile-display-name" class="profile-input" placeholder="昵称" maxlength="20"/>
+        <div class="profile-github-name" id="profile-github-name"></div>
+      </div>
+      <button class="profile-save-btn" id="profile-save-btn">保存昵称</button>
+      <button class="profile-logout-btn" id="btn-logout">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+        </svg>
+        退出登录
+      </button>
+    </div>
+  </div>
+
+  <!-- TOKEN WIDGET -->
+  <div id="token-widget" class="token-widget" style="display:none">
+    <div class="token-widget-title">🔑 Lua 验证码</div>
+    <div class="token-code" id="token-code">------</div>
+    <div class="token-timer" id="token-timer">有效期 5 分钟</div>
+    <button class="token-copy-btn" id="token-copy-btn">复制验证码</button>
+    <button class="token-refresh-btn" id="token-refresh-btn">↻ 重新生成</button>
+  </div>
+
+  <!-- BOTTOM DOCK -->
+  <div id="dock-wrap" class="dock-wrap">
+    <div class="dock-peek" id="dock-peek">›</div>
+    <div class="dock-bar" id="dock-bar">
+
+      <button class="dock-btn" id="dock-channels">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>频道</span>
+      </button>
+
+      <button class="dock-btn" id="dock-members">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <span>成员</span>
+      </button>
+
+      <!-- CENTER AVATAR -->
+      <button class="dock-btn dock-center" id="dock-profile">
+        <div class="dock-avatar-wrap">
+          <img id="dock-avatar-img" src="" alt="" style="display:none"/>
+          <div id="dock-avatar-ph" class="dock-avatar-ph"></div>
+          <div class="dock-avatar-online"></div>
+        </div>
+        <span id="dock-display-name">我</span>
+      </button>
+
+      <button class="dock-btn admin-only" id="dock-admin" style="display:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>后台</span>
+      </button>
+
+      <button class="dock-btn" id="dock-token">
+        <span style="font-size:20px">🔑</span>
+        <span>验证码</span>
+      </button>
+
+    </div>
+  </div>
+
 </div>
 
 <!-- CHANNEL MODAL -->
