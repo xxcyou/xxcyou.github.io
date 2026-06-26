@@ -1023,3 +1023,139 @@ body::before{
 
 /* modal z-index */
 .modal-overlay { z-index: 900 !important; }
+
+
+/* ── DOCK COLLAPSED: disable interaction ── */
+.dock-wrap:not(.expanded) .dock-bar {
+  pointer-events: none;
+}
+.dock-wrap:not(.expanded) .dock-bar * {
+  pointer-events: none;
+}
+.dock-peek { pointer-events: all !important; }
+
+/* ── USERNAME SUFFIX in messages ── */
+.msg-github-name {
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 4px;
+  background: linear-gradient(90deg, #6b7280, #9ca3af);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0.7;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── ADMIN MESSAGE STYLING ── */
+.msg.is-admin-msg .msg-avatar,
+.msg.is-admin-msg .msg-avatar-ph {
+  border: 2px solid var(--accent) !important;
+  box-shadow: 0 0 10px rgba(124,58,237,.4) !important;
+}
+.msg.is-admin-msg .msg-username {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.msg-admin-crown {
+  font-size: 11px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ── USER PROFILE POPUP ── */
+.user-profile-popup {
+  position: fixed;
+  z-index: 700;
+  background: var(--glass);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 20px;
+  width: 240px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow2), inset 0 1px 0 rgba(255,255,255,.06);
+  animation: panel-in .15s ease;
+}
+.user-popup-avatar-wrap {
+  position: relative;
+  width: 64px; height: 64px;
+  margin: 0 auto 12px;
+}
+.user-popup-avatar,
+.user-popup-avatar-ph {
+  width: 64px; height: 64px; border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border2);
+}
+.user-popup-avatar-ph {
+  background: var(--grad2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: #fff;
+}
+.user-popup-admin-ring {
+  position: absolute; inset: -3px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--grad) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+}
+.user-popup-name {
+  font-size: 15px; font-weight: 700;
+  text-align: center; margin-bottom: 2px;
+}
+.user-popup-name.is-admin {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.user-popup-username {
+  font-size: 11px; color: var(--text2);
+  text-align: center; margin-bottom: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.user-popup-admin-badge {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  background: rgba(124,58,237,.12); border: 1px solid rgba(124,58,237,.25);
+  color: var(--accent); border-radius: 20px;
+  padding: 3px 10px; margin: 6px auto;
+  width: fit-content;
+}
+.user-popup-link {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 12px; padding: 8px;
+  background: rgba(255,255,255,.04); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text2); font-size: 12px;
+  text-decoration: none; transition: all .15s;
+}
+.user-popup-link:hover { border-color: var(--accent); color: var(--accent); }
+.user-popup-close {
+  position: absolute; top: 10px; right: 12px;
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 16px; padding: 2px 6px;
+  border-radius: 6px; transition: color .15s;
+}
+.user-popup-close:hover { color: var(--text); }
+
+/* ── ONLINE LIST ADMIN BADGE ── */
+.online-member-admin {
+  font-size: 8px; font-weight: 700;
+  background: var(--grad); color: #fff;
+  padding: 1px 5px; border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  margin-left: 4px; vertical-align: middle;
+}
+.online-member.is-admin .online-avatar,
+.online-member.is-admin .online-avatar-ph {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 8px rgba(124,58,237,.3);
+}
+.online-member.is-admin span:first-of-type {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 600;
+}
