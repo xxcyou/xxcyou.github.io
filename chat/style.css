@@ -1032,3 +1032,31 @@ body::before{
   .dock-center { margin-top: -18px; }
   .dock-avatar-wrap, .dock-avatar-wrap img, .dock-avatar-ph { width: 46px; height: 46px; }
 }
+
+/* ── Z-INDEX FIXES ── */
+.dock-panel { z-index: 300 !important; }
+.token-widget { z-index: 300 !important; }
+.dock-wrap { z-index: 200 !important; }
+.msg-action-menu { z-index: 500 !important; }
+.modal-overlay { z-index: 600 !important; }
+
+/* ── HIDE MOBILE MENU BTN (using dock now) ── */
+.mobile-menu-btn { display: none !important; }
+
+/* ── DOCK DEFAULT COLLAPSED via CSS ── */
+.dock-wrap { transition: transform .35s cubic-bezier(.4,0,.2,1), left .35s; }
+
+/* ── PANEL position above dock bar ── */
+.dock-panel {
+  bottom: 100px !important;
+}
+
+/* ── MSG ACTION MENU fix ── */
+.msg-action-menu {
+  position: fixed !important;
+  display: none;
+}
+.msg-action-menu.open { display: block !important; }
+
+/* ── DOCK PANEL stopPropagation visual ── */
+.dock-panel * { pointer-events: all; }
