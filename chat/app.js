@@ -14,6 +14,7 @@ let realtimeSub = null, replyTo = null;
 let presenceChannel = null, onlineUsers = {};
 let tokenTimer = null, currentToken = null;
 let activeMenu = null, activePanel = null;
+let adminUserIds = new Set(); // cache of admin user IDs
 
 const EMOJIS = [
   '😀','😂','🤣','😊','😍','🥰','😎','🤔','😅','😭','😤','🥳',
@@ -104,12 +105,14 @@ async function showApp(user) {
 
 /* ══════════════════════════════════ ADMIN ══════════════════════════════════ */
 async function checkAdmin() {
-  const { data } = await sb.from('admins').select('user_id').eq('user_id', me.id).single();
-  isAdmin = !!data;
+  // Load ALL admins for message display
+  const { data: allAdmins } = await sb.from('admins').select('user_id');
+  adminUserIds = new Set((allAdmins || []).map(a => a.user_id));
+  isAdmin = adminUserIds.has(me.id);
+
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin ? '' : 'none';
   });
-  // Show admin dock button
   const adminBtn = document.getElementById('dock-admin');
   if (adminBtn) adminBtn.style.display = isAdmin ? 'flex' : 'none';
 }
@@ -433,16 +436,29 @@ function buildMsgEl(msg) {
   if (msg.content) contentHTML += `<div class="msg-text">${esc(msg.content)}</div>`;
 
   let menuItems = `<button class="menu-item reply-btn"><span class="menu-icon">↩</span>回复</button>`;
-  if (!isMe) menuItems += `<button class="menu-item report-btn"><span class="menu-icon">🚨</span>举报</button>`;
-  if (canDelete) menuItems += `<button class="menu-item danger delete-btn"><span class="menu-icon">🗑</span>删除</button>`;
-  if (isAdmin && !isMe) menuItems += `<button class="menu-item danger ban-msg-btn"><span class="menu-icon">🚫</span>封禁用户</button>`;
+  menuItems += `<button class="menu-item report-btn"${isMe?' style="opacity:.4;pointer-events:none"':''}><span class="menu-icon">🚨</span>举报</button>`;
+  menuItems += `<button class="menu-item danger delete-btn"${!canDelete?' style="opacity:.4;pointer-events:none"':''}><span class="menu-icon">🗑</span>删除</button>`;
+  menuItems += `<button class="menu-item danger ban-msg-btn"${!isAdmin||isMe?' style="opacity:.4;pointer-events:none"':''}><span class="menu-icon">🚫</span>封禁</button>`;
+
+  // Check if this message sender is admin (we'll fetch from admins cache)
+  const senderIsAdmin = adminUserIds.has(msg.user_id);
+  if (senderIsAdmin) div.classList.add('is-admin-msg');
+
+  // GitHub username suffix (gray gradient)
+  const ghSuffix = msg.github_username
+    ? `<span class="msg-github-name">· @${esc(msg.github_username)}</span>`
+    : '';
+
+  const adminCrown = senderIsAdmin ? `<span class="msg-admin-crown">👑</span>` : '';
 
   div.innerHTML = `
-    <div class="msg-avatar-wrap">${avatarHTML}</div>
+    <div class="msg-avatar-wrap" style="cursor:pointer">${avatarHTML}</div>
     <div class="msg-body">
       ${replyHTML}
       <div class="msg-meta">
         <span class="msg-username${isMe?' is-me':''}">${esc(msg.username)}</span>
+        ${adminCrown}
+        ${ghSuffix}
         <span class="msg-time">${time}</span>
       </div>
       ${contentHTML}
@@ -451,6 +467,12 @@ function buildMsgEl(msg) {
       <button class="msg-action-trigger">⋯</button>
       <div class="msg-action-menu">${menuItems}</div>
     </div>`;
+
+  // Click avatar to show user profile popup
+  div.querySelector('.msg-avatar-wrap').addEventListener('click', e => {
+    e.stopPropagation();
+    showUserPopup(msg, e.currentTarget);
+  });
 
   const trigger = div.querySelector('.msg-action-trigger');
   const menu = div.querySelector('.msg-action-menu');
@@ -575,10 +597,11 @@ function subscribeRealtime() {
   if (realtimeSub) sb.removeChannel(realtimeSub);
   realtimeSub = sb.channel(`msgs-${currentChannel.id}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages',
-      filter: `channel_id=eq.${currentChannel.id}` }, payload => {
+      filter: `channel_id=eq.${currentChannel.id}` }, async payload => {
+      const msg = payload.new;
       const msgEl = document.getElementById('messages');
       if (msgEl.querySelector('.empty-state')) msgEl.innerHTML = '';
-      const day = new Date(payload.new.created_at).toLocaleDateString('zh-CN');
+      const day = new Date(msg.created_at).toLocaleDateString('zh-CN');
       const seps = msgEl.querySelectorAll('.day-sep');
       const lastSep = seps[seps.length-1];
       if (!lastSep || lastSep.textContent !== day) {
@@ -586,7 +609,7 @@ function subscribeRealtime() {
         sep.className = 'day-sep'; sep.textContent = day;
         msgEl.appendChild(sep);
       }
-      msgEl.appendChild(buildMsgEl(payload.new));
+      msgEl.appendChild(buildMsgEl(msg));
       scrollBottom();
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages',
@@ -621,6 +644,70 @@ function cleanupPresence() {
   onlineUsers = {}; renderOnlineUsers();
 }
 
+/* ══════════════════════════════════ USER POPUP ══════════════════════════════════ */
+function showUserPopup(msg, anchorEl) {
+  // Remove existing popup
+  document.getElementById('user-profile-popup')?.remove();
+
+  const senderIsAdmin = adminUserIds.has(msg.user_id);
+  const ghName = msg.github_username || '';
+  const displayName = msg.username || ghName || '用户';
+  const initial = displayName[0].toUpperCase();
+
+  const popup = document.createElement('div');
+  popup.className = 'user-profile-popup';
+  popup.id = 'user-profile-popup';
+
+  const adminRing = senderIsAdmin ? '<div class="user-popup-admin-ring"></div>' : '';
+  const adminBadge = senderIsAdmin
+    ? '<div class="user-popup-admin-badge">👑 管理员</div>' : '';
+  const avatarHTML = msg.avatar_url
+    ? `<img class="user-popup-avatar" src="${esc(msg.avatar_url)}" alt=""/>`
+    : `<div class="user-popup-avatar-ph">${esc(initial)}</div>`;
+  const ghLink = ghName
+    ? `<a class="user-popup-link" href="https://github.com/${esc(ghName)}" target="_blank">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        访问 GitHub 主页
+      </a>` : '';
+
+  popup.innerHTML = `
+    <button class="user-popup-close" id="popup-close">✕</button>
+    <div class="user-popup-avatar-wrap">
+      ${avatarHTML}
+      ${adminRing}
+    </div>
+    <div class="user-popup-name${senderIsAdmin?' is-admin':''}">${esc(displayName)}</div>
+    ${ghName ? `<div class="user-popup-username">@${esc(ghName)}</div>` : ''}
+    ${adminBadge}
+    ${ghLink}`;
+
+  document.body.appendChild(popup);
+
+  // Position popup near anchor
+  const rect = anchorEl.getBoundingClientRect();
+  const popupW = 240, popupH = 220;
+  let top = rect.top - popupH - 8;
+  let left = rect.left;
+  if (top < 60) top = rect.bottom + 8;
+  if (left + popupW > window.innerWidth - 8) left = window.innerWidth - popupW - 8;
+  if (left < 8) left = 8;
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+
+  // Close handlers
+  popup.querySelector('#popup-close').addEventListener('click', () => popup.remove());
+  setTimeout(() => {
+    document.addEventListener('click', function closePopup(e) {
+      if (!e.target.closest('#user-profile-popup')) {
+        popup.remove();
+        document.removeEventListener('click', closePopup);
+      }
+    });
+  }, 100);
+}
+
 function renderOnlineUsers() {
   const count = Object.keys(onlineUsers).length;
   document.getElementById('online-count').textContent = count;
@@ -629,10 +716,13 @@ function renderOnlineUsers() {
   list.innerHTML = '';
   Object.values(onlineUsers).forEach(u => {
     const el = document.createElement('div');
-    el.className = 'online-member';
-    el.innerHTML = u.avatar_url
-      ? `<img class="online-avatar" src="${esc(u.avatar_url)}" alt=""/><span>${esc(u.username)}</span>`
-      : `<div class="online-avatar-ph">${esc((u.username||'?')[0].toUpperCase())}</div><span>${esc(u.username)}</span>`;
+    const uIsAdmin = adminUserIds.has(u.user_id);
+    el.className = 'online-member' + (uIsAdmin ? ' is-admin' : '');
+    const adminBadge = uIsAdmin ? '<span class="online-member-admin">ADMIN</span>' : '';
+    const avatarHTML = u.avatar_url
+      ? `<img class="online-avatar" src="${esc(u.avatar_url)}" alt=""/>`
+      : `<div class="online-avatar-ph">${esc((u.username||'?')[0].toUpperCase())}</div>`;
+    el.innerHTML = `${avatarHTML}<span>${esc(u.username)}</span>${adminBadge}`;
     list.appendChild(el);
   });
 }
