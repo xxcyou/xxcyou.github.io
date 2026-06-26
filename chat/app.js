@@ -24,35 +24,60 @@ const EMOJIS = [
 
 /* ══════════════════════════════════ INIT ══════════════════════════════════ */
 async function init() {
+  buildEmojiPicker();
+  bindUI();
+
   const search = window.location.search;
+  const hash = window.location.hash;
+
+  // 错误处理
   if (search.includes('error=')) {
     const p = new URLSearchParams(search);
     toast('登录失败：' + (p.get('error_description') || p.get('error')), 4000);
     window.history.replaceState(null, '', REDIRECT_URL);
+    showAuth();
+    return;
   }
 
-  let appStarted = false;
+  // 监听所有 auth 事件（必须最先注册）
   sb.auth.onAuthStateChange(async (event, session) => {
-    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && !appStarted) {
-      appStarted = true;
+    console.log('auth event:', event, !!session);
+    if (event === 'SIGNED_IN' && session) {
       window.history.replaceState(null, '', REDIRECT_URL);
-      await showApp(session.user);
+      if (document.getElementById('auth-screen').style.display !== 'none') {
+        await showApp(session.user);
+      }
     } else if (event === 'SIGNED_OUT') {
-      appStarted = false;
       showAuth();
     }
   });
 
-  buildEmojiPicker();
-  bindUI();
+  // PKCE 回调：有 code 参数时 supabase 会自动处理并触发 SIGNED_IN
+  if (search.includes('code=')) {
+    // supabase js v2 会自动检测 URL 中的 code 并兑换
+    // 等待 onAuthStateChange 触发即可，这里先显示加载状态
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
 
-  if (search.includes('code=')) return;
+    // 兜底：3秒后还没跳转就手动检查
+    setTimeout(async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session && document.getElementById('auth-screen').style.display !== 'none') {
+        window.history.replaceState(null, '', REDIRECT_URL);
+        await showApp(session.user);
+      } else if (!session) {
+        toast('登录超时，请重试');
+        showAuth();
+      }
+    }, 3000);
+    return;
+  }
 
+  // 普通访问：检查已有 session
   const { data: { session } } = await sb.auth.getSession();
-  if (session && !appStarted) {
-    appStarted = true;
+  if (session) {
     await showApp(session.user);
-  } else if (!session) {
+  } else {
     showAuth();
   }
 }
@@ -731,20 +756,20 @@ function bindUI() {
   });
 
   // Mobile menu btn → open channel panel
-  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => openPanel('channels'));
+  document.getElementById('mobile-menu-btn').addEventListener('click', () => openPanel('channels'));
 
   // ── DOCK ──
-  document.getElementById('dock-peek')?.addEventListener('click', toggleDock);
+  document.getElementById('dock-peek').addEventListener('click', toggleDock);
 
-  document.getElementById('dock-channels')?.addEventListener('click', e => {
+  document.getElementById('dock-channels').addEventListener('click', e => {
     e.stopPropagation();
     openPanel('channels');
   });
-  document.getElementById('dock-members')?.addEventListener('click', e => {
+  document.getElementById('dock-members').addEventListener('click', e => {
     e.stopPropagation();
     openPanel('members');
   });
-  document.getElementById('dock-profile')?.addEventListener('click', e => {
+  document.getElementById('dock-profile').addEventListener('click', e => {
     e.stopPropagation();
     updateProfilePanel();
     openPanel('profile');
@@ -752,24 +777,24 @@ function bindUI() {
   document.getElementById('dock-admin')?.addEventListener('click', () => {
     window.location.href = '/chat/admin';
   });
-  document.getElementById('dock-token')?.addEventListener('click', async e => {
+  document.getElementById('dock-token').addEventListener('click', async e => {
     e.stopPropagation();
     closePanel();
     const tw = document.getElementById('token-widget');
-    if (tw && tw.style.display === 'none') {
+    if (tw.style.display === 'none') {
       tw.style.display = 'block';
       await generateToken();
-    } else if (tw) {
+    } else {
       tw.style.display = 'none';
     }
   });
 
-// Token widget
-  document.getElementById('token-copy-btn')?.addEventListener('click', () => {
+  // Token widget
+  document.getElementById('token-copy-btn').addEventListener('click', () => {
     if (!currentToken) { toast('请先生成验证码'); return; }
     navigator.clipboard.writeText(currentToken).then(() => toast('✓ 验证码已复制'));
   });
-  document.getElementById('token-refresh-btn')?.addEventListener('click', generateToken);
+  document.getElementById('token-refresh-btn').addEventListener('click', generateToken);
 
   // Profile
   document.getElementById('profile-save-btn').addEventListener('click', saveProfile);
