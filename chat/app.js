@@ -294,18 +294,18 @@ function removeOverlay() {
   document.getElementById('panel-overlay')?.remove();
 }
 
-/* Dock collapse - default collapsed */
+/* Dock slide up/down */
 function toggleDock() {
   const dock = document.getElementById('dock-wrap');
-  dock.classList.toggle('collapsed');
+  dock.classList.toggle('expanded');
 }
 
 function collapseDock() {
-  document.getElementById('dock-wrap').classList.add('collapsed');
+  document.getElementById('dock-wrap').classList.remove('expanded');
 }
 
 function expandDock() {
-  document.getElementById('dock-wrap').classList.remove('collapsed');
+  document.getElementById('dock-wrap').classList.add('expanded');
 }
 
 /* ══════════════════════════════════ CHANNELS ══════════════════════════════════ */
@@ -805,25 +805,31 @@ function bindUI() {
     if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
   });
 
-  // Remove mobile menu btn handler (no longer needed)
-  document.getElementById('mobile-menu-btn').style.display = 'none';
-
-  // ── DOCK - default collapsed ──
-  collapseDock();
+  // ── DOCK - default collapsed (slide down) ──
+  // collapseDock is called on init, expandDock on peek click
 
   document.getElementById('dock-peek').addEventListener('click', e => {
     e.stopPropagation();
-    expandDock();
-  });
-
-  // Click outside dock to collapse
-  document.addEventListener('click', e => {
     const dock = document.getElementById('dock-wrap');
-    if (!e.target.closest('#dock-wrap') && !e.target.closest('.dock-panel') &&
-        !e.target.closest('#token-widget') && !dock.classList.contains('collapsed')) {
+    if (dock.classList.contains('expanded')) {
       closePanelAndToken();
       collapseDock();
+    } else {
+      expandDock();
     }
+  });
+
+  // Click outside dock+panels to collapse
+  document.addEventListener('click', e => {
+    const dock = document.getElementById('dock-wrap');
+    if (!dock.classList.contains('expanded')) return;
+    if (
+      e.target.closest('#dock-wrap') ||
+      e.target.closest('.dock-panel') ||
+      e.target.closest('#token-widget')
+    ) return;
+    closePanelAndToken();
+    collapseDock();
   });
 
   document.getElementById('dock-channels').addEventListener('click', e => {
