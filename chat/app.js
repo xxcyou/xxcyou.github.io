@@ -190,17 +190,32 @@ async function saveProfile() {
   if (!displayName) { toast('昵称不能为空'); return; }
   if (displayName.length > 20) { toast('昵称最多20字'); return; }
 
-  const { error } = await sb.from('profiles').upsert({
-    user_id: me.id,
-    github_username: myProfile?.github_username || me.user_metadata?.user_name || '',
-    display_name: displayName,
-    avatar_url: myProfile?.avatar_url || null,
-    updated_at: new Date().toISOString(),
-  });
+  const ghName = myProfile?.github_username || me.user_metadata?.user_name || me.email?.split('@')[0] || '';
+
+  // Try update first, then insert
+  const { data: existing } = await sb.from('profiles').select('user_id').eq('user_id', me.id).single();
+
+  let error;
+  if (existing) {
+    const res = await sb.from('profiles').update({
+      display_name: displayName,
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', me.id);
+    error = res.error;
+  } else {
+    const res = await sb.from('profiles').insert({
+      user_id: me.id,
+      github_username: ghName,
+      display_name: displayName,
+      avatar_url: myProfile?.avatar_url || null,
+    });
+    error = res.error;
+  }
 
   if (error) { toast('保存失败：' + error.message); return; }
-  myProfile = { ...myProfile, display_name: displayName };
+  myProfile = { ...myProfile, display_name: displayName, github_username: ghName };
   updateDockAvatar();
+  updateProfilePanel();
   toast('✓ 昵称已保存');
 }
 
@@ -232,10 +247,11 @@ async function uploadAvatar(file) {
 
 /* ══════════════════════════════════ DOCK ══════════════════════════════════ */
 function openPanel(panelId) {
-  // Close all panels
+  // Close all panels first
   document.querySelectorAll('.dock-panel').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
   removeOverlay();
+  document.getElementById('token-widget').style.display = 'none';
 
   if (activePanel === panelId) {
     activePanel = null;
@@ -248,12 +264,10 @@ function openPanel(panelId) {
   panel.style.display = 'flex';
   activePanel = panelId;
 
-  // Mark active dock btn
   const btn = document.getElementById('dock-' + panelId);
   if (btn) btn.classList.add('active');
 
-  // Add overlay to close on outside click
-  addOverlay(() => closePanel());
+  // No overlay needed - click outside closes via document listener
 }
 
 function closePanel() {
@@ -261,6 +275,11 @@ function closePanel() {
   document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
   activePanel = null;
   removeOverlay();
+}
+
+function closePanelAndToken() {
+  closePanel();
+  document.getElementById('token-widget').style.display = 'none';
 }
 
 function addOverlay(cb) {
@@ -275,9 +294,18 @@ function removeOverlay() {
   document.getElementById('panel-overlay')?.remove();
 }
 
-/* Dock collapse */
+/* Dock collapse - default collapsed */
 function toggleDock() {
-  document.getElementById('dock-wrap').classList.toggle('collapsed');
+  const dock = document.getElementById('dock-wrap');
+  dock.classList.toggle('collapsed');
+}
+
+function collapseDock() {
+  document.getElementById('dock-wrap').classList.add('collapsed');
+}
+
+function expandDock() {
+  document.getElementById('dock-wrap').classList.remove('collapsed');
 }
 
 /* ══════════════════════════════════ CHANNELS ══════════════════════════════════ */
@@ -428,11 +456,24 @@ function buildMsgEl(msg) {
   const menu = div.querySelector('.msg-action-menu');
   trigger.addEventListener('click', e => {
     e.stopPropagation();
-    if (activeMenu && activeMenu !== menu) activeMenu.classList.remove('open');
+    // Close other menus
+    document.querySelectorAll('.msg-action-menu.open').forEach(m => {
+      if (m !== menu) m.classList.remove('open');
+    });
+    // Position menu relative to trigger
     const rect = trigger.getBoundingClientRect();
-    const menuH = 160;
-    menu.style.top = (rect.top - menuH - 4) + 'px';
-    menu.style.right = (window.innerWidth - rect.right) + 'px';
+    const menuW = 140;
+    const menuH = 36 * menu.querySelectorAll('.menu-item').length + 8;
+    // horizontal: align right edge with trigger right
+    let right = window.innerWidth - rect.right;
+    if (right < 0) right = 8;
+    // vertical: prefer above trigger
+    let top = rect.top - menuH - 6;
+    if (top < 60) top = rect.bottom + 6; // flip below if no space
+    menu.style.position = 'fixed';
+    menu.style.top = top + 'px';
+    menu.style.right = right + 'px';
+    menu.style.left = 'auto';
     menu.classList.toggle('open');
     activeMenu = menu.classList.contains('open') ? menu : null;
   });
@@ -764,11 +805,26 @@ function bindUI() {
     if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
   });
 
-  // Mobile menu btn → open channel panel
-  document.getElementById('mobile-menu-btn').addEventListener('click', () => openPanel('channels'));
+  // Remove mobile menu btn handler (no longer needed)
+  document.getElementById('mobile-menu-btn').style.display = 'none';
 
-  // ── DOCK ──
-  document.getElementById('dock-peek').addEventListener('click', toggleDock);
+  // ── DOCK - default collapsed ──
+  collapseDock();
+
+  document.getElementById('dock-peek').addEventListener('click', e => {
+    e.stopPropagation();
+    expandDock();
+  });
+
+  // Click outside dock to collapse
+  document.addEventListener('click', e => {
+    const dock = document.getElementById('dock-wrap');
+    if (!e.target.closest('#dock-wrap') && !e.target.closest('.dock-panel') &&
+        !e.target.closest('#token-widget') && !dock.classList.contains('collapsed')) {
+      closePanelAndToken();
+      collapseDock();
+    }
+  });
 
   document.getElementById('dock-channels').addEventListener('click', e => {
     e.stopPropagation();
@@ -783,16 +839,18 @@ function bindUI() {
     updateProfilePanel();
     openPanel('profile');
   });
-  document.getElementById('dock-admin')?.addEventListener('click', () => {
+  document.getElementById('dock-admin')?.addEventListener('click', e => {
+    e.stopPropagation();
     window.location.href = '/chat/admin';
   });
   document.getElementById('dock-token').addEventListener('click', async e => {
     e.stopPropagation();
     closePanel();
     const tw = document.getElementById('token-widget');
-    if (tw.style.display === 'none') {
+    const isHidden = tw.style.display === 'none' || tw.style.display === '';
+    if (isHidden) {
       tw.style.display = 'block';
-      await generateToken();
+      if (!currentToken) await generateToken();
     } else {
       tw.style.display = 'none';
     }
